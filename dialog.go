@@ -120,7 +120,7 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 								DisplayMember: "Name",
 								Model:         IrqPriority(),
 								OnCurrentIndexChanged: func() {
-									device.DevicePriority = devicePriorityCB.CurrentIndex()
+									device.DevicePriority = int32(devicePriorityCB.CurrentIndex())
 								},
 							},
 
@@ -131,7 +131,8 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 								DisplayMember: "Name",
 								Model:         IrqPolicy(),
 								OnCurrentIndexChanged: func() {
-									device.DevicePolicy = devicePolicyCB.CurrentIndex()
+									device.DevicePolicy = int32(devicePolicyCB.CurrentIndex())
+									log.Println(device.DevicePolicy, device.DevicePolicy == 4)
 									if device.DevicePolicy == 4 {
 										cpuArrayCom.SetEnabled(true)
 									} else {
@@ -142,10 +143,9 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 
 							Composite{
 								AssignTo: &cpuArrayCom,
-								// Enabled: Bind("eq(device.DevicePolicy, 4)"),
 								Enabled:  Bind("device.DevicePolicy == 4"),
 								Layout:   Grid{Columns: 2, Alignment: AlignHFarVNear},
-								Children: CheckBoxList(CPUArray, &device.AssignmentSetOverrideBits),
+								Children: CheckBoxList(CPUArray, &device.AssignmentSetOverride),
 								// Invalid Option
 								// TODO: The affinity mask must contain at least one processor.
 							},
@@ -204,10 +204,19 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 						AssignTo: &acceptPB,
 						Text:     "OK",
 						OnClicked: func() {
-							if err := db.Submit(); err != nil {
-								return
+							if device.DevicePolicy == 4 && device.AssignmentSetOverride == Bits(0) {
+								walk.MsgBox(dlg, "Invalid Option", "The affinity mask must contain at least one processor.", walk.MsgBoxIconError)
+							} else {
+								if err := db.Submit(); err != nil {
+									return
+								}
+								dlg.Accept()
 							}
-							dlg.Accept()
+
+							// if err := db.Submit(); err != nil {
+							// 	return
+							// }
+							// dlg.Accept()
 						},
 					},
 					PushButton{

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/binary"
 	"fmt"
 	"log"
 
@@ -19,10 +18,34 @@ func Uvarint(buf []byte) (x uint64) {
 	return
 }
 
-func intToByte(i int) []byte {
+// https://stackoverflow.com/a/27834860/4509632
+func clen(n []byte) int {
+	for i := 0; i < len(n); i++ {
+		if n[i] == 0 {
+			return i
+		}
+	}
+	return len(n)
+}
+
+// https://github.com/golang/go/blob/master/src/encoding/binary/binary.go#L130
+func littleEndian_PutUint64(v uint64) []byte {
 	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, uint64(i))
+	_ = b[7] // early bounds check to guarantee safety of writes below
+	b[0] = byte(v)
+	b[1] = byte(v >> 8)
+	b[2] = byte(v >> 16)
+	b[3] = byte(v >> 24)
+	b[4] = byte(v >> 32)
+	b[5] = byte(v >> 40)
+	b[6] = byte(v >> 48)
+	b[7] = byte(v >> 56)
 	return b
+}
+
+func littleEndian_Uint16(b []byte) uint16 {
+	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
+	return uint16(b[0]) | uint16(b[1])<<8
 }
 
 func GetStringValue(key registry.Key, name string) string {
@@ -41,16 +64,16 @@ func GetBinaryValue(key registry.Key, name string) []byte {
 	return value
 }
 
-func GetDWORDuint16Value(key registry.Key, name string) uint16 {
+func GetDWORDint32Value(key registry.Key, name string) int32 {
 	buf := make([]byte, 4)
 	key.GetValue(name, buf)
-	return binary.LittleEndian.Uint16(buf)
+	return int32(littleEndian_Uint16(buf))
 }
 
 func GetDWORDHexValue(key registry.Key, name string) string {
 	buf := make([]byte, 4)
 	key.GetValue(name, buf)
-	return fmt.Sprintf("%#02x", binary.LittleEndian.Uint16(buf))
+	return fmt.Sprintf("%#02x", littleEndian_Uint16(buf))
 }
 
 func setMSIMode(item *Device) {
@@ -82,7 +105,8 @@ func setMSIMode(item *Device) {
 func setAffinityPolicy(item *Device) {
 	var k registry.Key
 	var err error
-	if item.DevicePolicy == -1 {
+
+	if item.DevicePolicy == 0 && item.DevicePriority == 0 {
 		k, err = registry.OpenKey(item.reg, `Interrupt Management\Affinity Policy`, registry.ALL_ACCESS)
 		if err != nil {
 			log.Println(err)
@@ -104,10 +128,10 @@ func setAffinityPolicy(item *Device) {
 			log.Println(err)
 		}
 
-		if err := k.SetBinaryValue("AssignmentSetOverride", intToByte(int(item.AssignmentSetOverrideBits))); err != nil {
+		AssignmentSetOverrideByte := littleEndian_PutUint64(uint64(item.AssignmentSetOverride))
+		if err := k.SetBinaryValue("AssignmentSetOverride", AssignmentSetOverrideByte[:clen(AssignmentSetOverrideByte)]); err != nil {
 			log.Println(err)
 		}
-
 	}
 	if err := k.Close(); err != nil {
 		log.Println(err)

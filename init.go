@@ -9,7 +9,7 @@ import (
 
 type Device struct {
 	reg                 registry.Key
-	IrqPolicy           int
+	IrqPolicy           int32
 	DeviceDesc          string
 	DeviceIDs           []string
 	DevObjName          string
@@ -19,14 +19,13 @@ type Device struct {
 	FriendlyName        string
 
 	// AffinityPolicy
-	DevicePolicy              int
-	DevicePriority            int
-	AssignmentSetOverride     []byte
-	AssignmentSetOverrideBits Bits
+	DevicePolicy          int32
+	DevicePriority        int32
+	AssignmentSetOverride Bits
 
 	// MessageSignaledInterruptProperties
 	MessageNumberLimit string
-	MsiSupported       int
+	MsiSupported       int32
 }
 
 const (

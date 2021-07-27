@@ -37,6 +37,8 @@ func FindAllDevices() []Device {
 				continue
 			}
 			dev.DeviceDesc = val.(string)
+		} else {
+			continue
 		}
 
 		val, err = SetupDiGetDeviceRegistryProperty(handle, idata, SPDRP_FRIENDLYNAME)
@@ -58,16 +60,15 @@ func FindAllDevices() []Device {
 		dev.reg = reg
 
 		affinityPolicyKey, _ := registry.OpenKey(reg, `Interrupt Management\Affinity Policy`, registry.QUERY_VALUE)
-		dev.DevicePolicy = int(GetDWORDuint16Value(affinityPolicyKey, "DevicePolicy"))         // REG_DWORD
-		dev.DevicePriority = int(GetDWORDuint16Value(affinityPolicyKey, "DevicePriority"))     // REG_DWORD
-		dev.AssignmentSetOverride = GetBinaryValue(affinityPolicyKey, "AssignmentSetOverride") // REG_BINARY
+		dev.DevicePolicy = GetDWORDint32Value(affinityPolicyKey, "DevicePolicy")                // REG_DWORD
+		dev.DevicePriority = GetDWORDint32Value(affinityPolicyKey, "DevicePriority")            // REG_DWORD
+		AssignmentSetOverrideByte := GetBinaryValue(affinityPolicyKey, "AssignmentSetOverride") // REG_BINARY
 		affinityPolicyKey.Close()
 
-		dev.AssignmentSetOverrideBits = Bits(Uvarint(dev.AssignmentSetOverride))
-
+		dev.AssignmentSetOverride = Bits(Uvarint(AssignmentSetOverrideByte))
 		messageSignaledInterruptPropertiesKey, _ := registry.OpenKey(reg, `Interrupt Management\MessageSignaledInterruptProperties`, registry.QUERY_VALUE)
 		dev.MessageNumberLimit = GetDWORDHexValue(messageSignaledInterruptPropertiesKey, "MessageNumberLimit") // REG_DWORD https://docs.microsoft.com/de-de/windows-hardware/drivers/kernel/enabling-message-signaled-interrupts-in-the-registry
-		dev.MsiSupported = int(GetDWORDuint16Value(messageSignaledInterruptPropertiesKey, "MSISupported"))     // REG_DWORD
+		dev.MsiSupported = GetDWORDint32Value(messageSignaledInterruptPropertiesKey, "MSISupported")           // REG_DWORD
 		messageSignaledInterruptPropertiesKey.Close()
 
 		allDevices = append(allDevices, dev)

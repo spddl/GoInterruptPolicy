@@ -19,7 +19,7 @@ func main() {
 	})
 
 	mw := &MyMainWindow{
-		model: &FooModel{items: devices},
+		model: &Model{items: devices},
 		tv:    &walk.TableView{},
 	}
 	if _, err := (MainWindow{
@@ -49,47 +49,57 @@ func main() {
 					{Name: "DeviceDesc", Title: "Name", Width: 150},
 					{Name: "FriendlyName", Title: "Friendly Name"},
 					{Name: "LocationInformation", Title: "Location Info", Width: 150},
-					{Name: "MsiSupported", Title: "MSI Mode", Alignment: AlignCenter, FormatFunc: func(value interface{}) string {
-						if value.(int) == 0 {
-							return "✖"
-						} else {
-							return "✔"
-						}
+					{
+						Name:      "MsiSupported",
+						Title:     "MSI Mode",
+						Alignment: AlignCenter,
+						FormatFunc: func(value interface{}) string {
+							if value.(int32) == 0 {
+								return "✖"
+							} else {
+								return "✔"
+							}
+						},
 					},
+					{
+						Name: "DevicePolicy",
+						FormatFunc: func(value interface{}) string {
+							// https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/interrupt-affinity-and-priority
+							switch value.(int32) {
+							case IrqPolicyMachineDefault: // 0x00
+								return "Default"
+							case IrqPolicyAllCloseProcessors: // 0x01
+								return "All Close Proc"
+							case IrqPolicyOneCloseProcessor: // 0x02
+								return "One Close Proc"
+							case IrqPolicyAllProcessorsInMachine: // 0x03
+								return "All Proc in Machine"
+							case IrqPolicySpecifiedProcessors: // 0x04
+								return "Specified Proc"
+							case IrqPolicySpreadMessagesAcrossAllProcessors: // 0x05
+								return "Spread Messages Across All Proc"
+							default:
+								return fmt.Sprintf("%d", value.(int))
+							}
+						},
 					},
-					{Name: "DevicePolicy", FormatFunc: func(value interface{}) string {
-						// https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/interrupt-affinity-and-priority
-						switch value.(int) {
-						case IrqPolicyMachineDefault: // 0x00
-							return "Default"
-						case IrqPolicyAllCloseProcessors: // 0x01
-							return "All Close Proc"
-						case IrqPolicyOneCloseProcessor: // 0x02
-							return "One Close Proc"
-						case IrqPolicyAllProcessorsInMachine: // 0x03
-							return "All Proc in Machine"
-						case IrqPolicySpecifiedProcessors: // 0x04
-							return "Specified Proc"
-						case IrqPolicySpreadMessagesAcrossAllProcessors: // 0x05
-							return "Spread Messages Across All Proc"
-						default:
-							return fmt.Sprintf("%d", value.(int))
-						}
-					}},
-					{Name: "DevicePriority", FormatFunc: func(value interface{}) string {
-						switch value.(int) {
-						case 0:
-							return "Undefined"
-						case 1:
-							return "Low"
-						case 2:
-							return "Normal"
-						case 3:
-							return "High"
-						default:
-							return fmt.Sprintf("%d", value.(int))
-						}
-					}},
+					{
+						Name: "DevicePriority",
+						FormatFunc: func(value interface{}) string {
+							switch value.(int32) {
+							case 0:
+								return "Undefined"
+							case 1:
+								return "Low"
+							case 2:
+								return "Normal"
+							case 3:
+								return "High"
+							default:
+								return fmt.Sprintf("%d", value.(int))
+							}
+						},
+					},
 				},
 				Model:    mw.model,
 				AssignTo: &mw.tv,
@@ -111,6 +121,11 @@ func main() {
 				},
 			},
 		},
+		StatusBarItems: []StatusBarItem{
+			{
+				AssignTo: &mw.sbi,
+			},
+		},
 	}.Run()); err != nil {
 		log.Fatal(err)
 	}
@@ -119,13 +134,13 @@ func main() {
 type MyMainWindow struct {
 	*walk.MainWindow
 	tv    *walk.TableView
-	model *FooModel
+	model *Model
+	sbi   *walk.StatusBarItem
 }
 
 func (mw *MyMainWindow) lb_ItemActivated() {
 	item := &mw.model.items[mw.tv.CurrentIndex()]
 	orgItem := *item
-
 	_, err := RunDialog(mw, item)
 	if err != nil {
 		log.Print(err)
@@ -133,18 +148,20 @@ func (mw *MyMainWindow) lb_ItemActivated() {
 
 	if orgItem.MsiSupported != item.MsiSupported {
 		setMSIMode(item)
+		mw.sbi.SetText("Restart required")
 	}
 
-	if orgItem.DevicePolicy != item.DevicePolicy || orgItem.DevicePriority != item.DevicePriority || orgItem.AssignmentSetOverrideBits != item.AssignmentSetOverrideBits {
+	if orgItem.DevicePolicy != item.DevicePolicy || orgItem.DevicePriority != item.DevicePriority || orgItem.AssignmentSetOverride != item.AssignmentSetOverride {
 		setAffinityPolicy(item)
+		mw.sbi.SetText("Restart required")
 	}
 }
 
-type FooModel struct {
+type Model struct {
 	walk.SortedReflectTableModelBase
 	items []Device
 }
 
-func (m *FooModel) Items() interface{} {
+func (m *Model) Items() interface{} {
 	return m.items
 }
