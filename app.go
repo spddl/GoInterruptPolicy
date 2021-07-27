@@ -139,20 +139,23 @@ type MyMainWindow struct {
 }
 
 func (mw *MyMainWindow) lb_ItemActivated() {
-	item := &mw.model.items[mw.tv.CurrentIndex()]
-	orgItem := *item
-	_, err := RunDialog(mw, item)
+	newItem := &mw.model.items[mw.tv.CurrentIndex()]
+	orgItem := *newItem
+	result, err := RunDialog(mw, newItem)
 	if err != nil {
 		log.Print(err)
 	}
-
-	if orgItem.MsiSupported != item.MsiSupported {
-		setMSIMode(item)
+	if result == 2 { // cancel
+		mw.model.items[mw.tv.CurrentIndex()] = orgItem
+		return
+	}
+	if orgItem.MsiSupported != newItem.MsiSupported {
+		setMSIMode(newItem)
 		mw.sbi.SetText("Restart required")
 	}
 
-	if orgItem.DevicePolicy != item.DevicePolicy || orgItem.DevicePriority != item.DevicePriority || orgItem.AssignmentSetOverride != item.AssignmentSetOverride {
-		setAffinityPolicy(item)
+	if orgItem.DevicePolicy != newItem.DevicePolicy || orgItem.DevicePriority != newItem.DevicePriority || orgItem.AssignmentSetOverride != newItem.AssignmentSetOverride {
+		setAffinityPolicy(newItem)
 		mw.sbi.SetText("Restart required")
 	}
 }

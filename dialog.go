@@ -132,7 +132,6 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 								Model:         IrqPolicy(),
 								OnCurrentIndexChanged: func() {
 									device.DevicePolicy = int32(devicePolicyCB.CurrentIndex())
-									log.Println(device.DevicePolicy, device.DevicePolicy == 4)
 									if device.DevicePolicy == 4 {
 										cpuArrayCom.SetEnabled(true)
 									} else {
@@ -146,8 +145,6 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 								Enabled:  Bind("device.DevicePolicy == 4"),
 								Layout:   Grid{Columns: 2, Alignment: AlignHFarVNear},
 								Children: CheckBoxList(CPUArray, &device.AssignmentSetOverride),
-								// Invalid Option
-								// TODO: The affinity mask must contain at least one processor.
 							},
 						},
 					},
