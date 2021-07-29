@@ -62,7 +62,6 @@ var (
 	kernel32 = windows.NewLazySystemDLL("kernel32.dll")
 
 	// Functions
-	// activateActCtx *windows.LazyProc
 	procGetSystemInfo = kernel32.NewProc("GetSystemInfo")
 )
 

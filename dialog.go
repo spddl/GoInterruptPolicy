@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os/exec"
 	"strings"
 
 	"github.com/lxn/walk"
@@ -110,41 +111,59 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 
 					GroupBox{
 						Title:  "Advanced Policies",
-						Layout: Grid{Rows: 3},
+						Layout: Grid{Columns: 2},
 						Children: []Widget{
-
-							ComboBox{
-								AssignTo:      &devicePriorityCB,
-								Value:         Bind("device.DevicePriority"),
-								BindingMember: "Enums",
-								DisplayMember: "Name",
-								Model:         IrqPriority(),
-								OnCurrentIndexChanged: func() {
-									device.DevicePriority = int32(devicePriorityCB.CurrentIndex())
-								},
-							},
-
-							ComboBox{
-								AssignTo:      &devicePolicyCB,
-								Value:         Bind("device.DevicePolicy"),
-								BindingMember: "Enums",
-								DisplayMember: "Name",
-								Model:         IrqPolicy(),
-								OnCurrentIndexChanged: func() {
-									device.DevicePolicy = int32(devicePolicyCB.CurrentIndex())
-									if device.DevicePolicy == 4 {
-										cpuArrayCom.SetEnabled(true)
-									} else {
-										cpuArrayCom.SetEnabled(false)
-									}
+							Composite{
+								Layout: Grid{Columns: 2},
+								Children: []Widget{
+									LinkLabel{
+										Text: `Device Priority: <a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/miniport/ne-miniport-_irq_priority">?</a>`,
+										OnLinkActivated: func(link *walk.LinkLabelLink) {
+											// https://stackoverflow.com/a/12076082
+											exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", link.URL()).Start()
+										},
+									},
+									ComboBox{
+										AssignTo:      &devicePriorityCB,
+										Value:         Bind("device.DevicePriority"),
+										BindingMember: "Enums",
+										DisplayMember: "Name",
+										Model:         IrqPriority(),
+										OnCurrentIndexChanged: func() {
+											device.DevicePriority = int32(devicePriorityCB.CurrentIndex())
+										},
+									},
+									LinkLabel{
+										Text: `Device Policy: <a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/miniport/ne-miniport-_irq_device_policy">?</a>`,
+										OnLinkActivated: func(link *walk.LinkLabelLink) {
+											// https://stackoverflow.com/a/12076082
+											exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", link.URL()).Start()
+										},
+									},
+									ComboBox{
+										AssignTo:      &devicePolicyCB,
+										Value:         Bind("device.DevicePolicy"),
+										BindingMember: "Enums",
+										DisplayMember: "Name",
+										Model:         IrqPolicy(),
+										OnCurrentIndexChanged: func() {
+											device.DevicePolicy = int32(devicePolicyCB.CurrentIndex())
+											if device.DevicePolicy == 4 {
+												cpuArrayCom.SetEnabled(true)
+											} else {
+												cpuArrayCom.SetEnabled(false)
+											}
+										},
+									},
 								},
 							},
 
 							Composite{
-								AssignTo: &cpuArrayCom,
-								Enabled:  Bind("device.DevicePolicy == 4"),
-								Layout:   Grid{Columns: 2, Alignment: AlignHFarVNear},
-								Children: CheckBoxList(CPUArray, &device.AssignmentSetOverride),
+								Alignment: AlignHCenterVCenter,
+								AssignTo:  &cpuArrayCom,
+								Enabled:   Bind("device.DevicePolicy == 4"),
+								Layout:    Grid{Columns: 2},
+								Children:  CheckBoxList(CPUArray, &device.AssignmentSetOverride),
 							},
 						},
 					},
@@ -209,11 +228,6 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 								}
 								dlg.Accept()
 							}
-
-							// if err := db.Submit(); err != nil {
-							// 	return
-							// }
-							// dlg.Accept()
 						},
 					},
 					PushButton{

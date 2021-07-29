@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"time"
 
 	"github.com/lxn/walk"
+
 	//lint:ignore ST1001 standard behavior lxn/walk
 	. "github.com/lxn/walk/declarative"
 )
@@ -22,7 +24,8 @@ func main() {
 		model: &Model{items: devices},
 		tv:    &walk.TableView{},
 	}
-	if _, err := (MainWindow{
+
+	if err := (MainWindow{
 		AssignTo: &mw.MainWindow,
 		Title:    "GoInterruptPolicy",
 		MinSize: Size{
@@ -45,10 +48,20 @@ func main() {
 				AlternatingRowBG: true,
 				ColumnsOrderable: true,
 				Columns: []TableViewColumn{
-					{Name: "Index", Frozen: true, Title: " ", Width: 30, Hidden: true},
-					{Name: "DeviceDesc", Title: "Name", Width: 150},
-					{Name: "FriendlyName", Title: "Friendly Name"},
-					{Name: "LocationInformation", Title: "Location Info", Width: 150},
+					{
+						Name:  "DeviceDesc",
+						Title: "Name",
+						Width: 150,
+					},
+					{
+						Name:  "FriendlyName",
+						Title: "Friendly Name",
+					},
+					{
+						Name:  "LocationInformation",
+						Title: "Location Info",
+						Width: 150,
+					},
 					{
 						Name:      "MsiSupported",
 						Title:     "MSI Mode",
@@ -62,7 +75,8 @@ func main() {
 						},
 					},
 					{
-						Name: "DevicePolicy",
+						Name:  "DevicePolicy",
+						Title: "Device Policy",
 						FormatFunc: func(value interface{}) string {
 							// https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/interrupt-affinity-and-priority
 							switch value.(int32) {
@@ -84,7 +98,8 @@ func main() {
 						},
 					},
 					{
-						Name: "DevicePriority",
+						Name:  "DevicePriority",
+						Title: "Device Priority",
 						FormatFunc: func(value interface{}) string {
 							switch value.(int32) {
 							case 0:
@@ -97,6 +112,18 @@ func main() {
 								return "High"
 							default:
 								return fmt.Sprintf("%d", value.(int))
+							}
+						},
+					},
+					{
+						Name:  "LastChange",
+						Title: "Last Change",
+						Width: 130,
+						FormatFunc: func(value interface{}) string {
+							if value.(time.Time).IsZero() {
+								return "N/A"
+							} else {
+								return value.(time.Time).Format("2006-01-02 15:04:05")
 							}
 						},
 					},
@@ -126,9 +153,23 @@ func main() {
 				AssignTo: &mw.sbi,
 			},
 		},
-	}.Run()); err != nil {
+	}).Create(); err != nil {
 		log.Fatal(err)
 	}
+
+	var maxDeviceDesc int
+	for i := range devices {
+		newDeviceDesc := mw.TextWidthSize(devices[i].DeviceDesc)
+		if maxDeviceDesc < newDeviceDesc {
+			maxDeviceDesc = newDeviceDesc
+		}
+	}
+	if 150 < maxDeviceDesc {
+		mw.tv.Columns().At(0).SetWidth(maxDeviceDesc)
+	}
+
+	mw.Show()
+	mw.Run()
 }
 
 type MyMainWindow struct {
@@ -158,6 +199,21 @@ func (mw *MyMainWindow) lb_ItemActivated() {
 		setAffinityPolicy(newItem)
 		mw.sbi.SetText("Restart required")
 	}
+}
+
+func (mw *MyMainWindow) TextWidthSize(text string) int {
+	canvas, err := (*mw.tv).CreateCanvas()
+	if err != nil {
+		return 0
+	}
+	defer canvas.Dispose()
+
+	bounds, _, err := canvas.MeasureTextPixels(text, (*mw.tv).Font(), walk.Rectangle{Width: 9999999}, walk.TextCalcRect)
+	if err != nil {
+		return 0
+	}
+
+	return bounds.Size().Width
 }
 
 type Model struct {

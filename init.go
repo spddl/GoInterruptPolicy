@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"strconv"
+	"time"
 
 	"golang.org/x/sys/windows/registry"
 )
@@ -17,6 +18,7 @@ type Device struct {
 	LocationInformation string
 	Regpath             string
 	FriendlyName        string
+	LastChange          time.Time
 
 	// AffinityPolicy
 	DevicePolicy          int32
