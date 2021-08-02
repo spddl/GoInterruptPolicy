@@ -64,6 +64,7 @@ var (
 	procSetupDiClassGuidsFromNameExW      = modsetupapi.NewProc("SetupDiClassGuidsFromNameExW")
 	procSetupDiGetSelectedDevice          = modsetupapi.NewProc("SetupDiGetSelectedDevice")
 	procSetupDiSetSelectedDevice          = modsetupapi.NewProc("SetupDiSetSelectedDevice")
+	procSetupDiGetDevicePropertyW         = modsetupapi.NewProc("SetupDiGetDevicePropertyW")
 )
 
 func setupDiCreateDeviceInfoListEx(classGUID *windows.GUID, hwndParent uintptr, machineName *uint16, reserved uintptr) (handle DevInfo, err error) {
@@ -362,6 +363,19 @@ func SetupDiSetSelectedDevice(deviceInfoSet DevInfo, deviceInfoData *DevInfoData
 	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+// https://github.com/tajtiattila/hid/blob/2bd63ffd4c8c0b81e5999c7b183cc4325f773527/platform/zsys_windows.go
+func SetupDiGetDeviceProperty(devInfoSet DevInfo, devInfoData *DevInfoData, propKey *DEVPROPKEY, propType *uint32, propBuf *byte, propBufSize uint32, reqsize *uint32, flags uint32) (err error) {
+	r1, _, e1 := syscall.Syscall9(procSetupDiGetDevicePropertyW.Addr(), 8, uintptr(devInfoSet), uintptr(unsafe.Pointer(devInfoData)), uintptr(unsafe.Pointer(propKey)), uintptr(unsafe.Pointer(propType)), uintptr(unsafe.Pointer(propBuf)), uintptr(propBufSize), uintptr(unsafe.Pointer(reqsize)), uintptr(flags), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
 		} else {
 			err = syscall.EINVAL
 		}

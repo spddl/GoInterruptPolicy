@@ -41,6 +41,16 @@ func FindAllDevices() []Device {
 			continue
 		}
 
+		valProp, err := GetDeviceProperty(handle, idata, DEVPKEY_PciRootBus_PCIExpressNativePMEControl)
+		if err == nil {
+			dev.InterrupTypeMap = Bits(littleEndian_Uint16(valProp))
+		}
+
+		valProp, err = GetDeviceProperty(handle, idata, DEVPKEY_PciRootBus_MaxMSILimit)
+		if err == nil {
+			dev.MaxMSILimit = uint32(littleEndian_Uint16(valProp))
+		}
+
 		val, err = SetupDiGetDeviceRegistryProperty(handle, idata, SPDRP_FRIENDLYNAME)
 		if err == nil {
 			dev.FriendlyName = val.(string)
@@ -64,16 +74,21 @@ func FindAllDevices() []Device {
 		}
 
 		affinityPolicyKey, _ := registry.OpenKey(dev.reg, `Interrupt Management\Affinity Policy`, registry.QUERY_VALUE)
-		dev.DevicePolicy = GetDWORDint32Value(affinityPolicyKey, "DevicePolicy")                // REG_DWORD
-		dev.DevicePriority = GetDWORDint32Value(affinityPolicyKey, "DevicePriority")            // REG_DWORD
+		dev.DevicePolicy = GetDWORDuint32Value(affinityPolicyKey, "DevicePolicy")               // REG_DWORD
+		dev.DevicePriority = GetDWORDuint32Value(affinityPolicyKey, "DevicePriority")           // REG_DWORD
 		AssignmentSetOverrideByte := GetBinaryValue(affinityPolicyKey, "AssignmentSetOverride") // REG_BINARY
 		affinityPolicyKey.Close()
 
 		dev.AssignmentSetOverride = Bits(Uvarint(AssignmentSetOverrideByte))
-		messageSignaledInterruptPropertiesKey, _ := registry.OpenKey(dev.reg, `Interrupt Management\MessageSignaledInterruptProperties`, registry.QUERY_VALUE)
-		dev.MessageNumberLimit = GetDWORDHexValue(messageSignaledInterruptPropertiesKey, "MessageNumberLimit") // REG_DWORD https://docs.microsoft.com/de-de/windows-hardware/drivers/kernel/enabling-message-signaled-interrupts-in-the-registry
-		dev.MsiSupported = GetDWORDint32Value(messageSignaledInterruptPropertiesKey, "MSISupported")           // REG_DWORD
-		messageSignaledInterruptPropertiesKey.Close()
+
+		if dev.InterrupTypeMap != ZeroBit {
+			messageSignaledInterruptPropertiesKey, _ := registry.OpenKey(dev.reg, `Interrupt Management\MessageSignaledInterruptProperties`, registry.QUERY_VALUE)
+			dev.MessageNumberLimit = GetDWORDuint32Value(messageSignaledInterruptPropertiesKey, "MessageNumberLimit") // REG_DWORD https://docs.microsoft.com/de-de/windows-hardware/drivers/kernel/enabling-message-signaled-interrupts-in-the-registry
+			dev.MsiSupported = GetDWORDuint32Value(messageSignaledInterruptPropertiesKey, "MSISupported")             // REG_DWORD
+			messageSignaledInterruptPropertiesKey.Close()
+		} else {
+			dev.MsiSupported = 2 // invalid
+		}
 
 		allDevices = append(allDevices, dev)
 	}
@@ -91,4 +106,23 @@ func SetupDiGetClassDevs(classGuid *windows.GUID, enumerator *uint16, hwndParent
 		}
 	}
 	return
+}
+
+func GetDeviceProperty(dis DevInfo, devInfoData *DevInfoData, devPropKey DEVPROPKEY) ([]byte, error) {
+	var propt, size uint32
+	buf := make([]byte, 16)
+	run := true
+	for run {
+		err := SetupDiGetDeviceProperty(dis, devInfoData, &devPropKey, &propt, &buf[0], uint32(len(buf)), &size, 0)
+		switch {
+		case size > uint32(len(buf)):
+			buf = make([]byte, size+16)
+		case err != nil:
+			return buf, err
+		default:
+			run = false
+		}
+	}
+
+	return buf, nil
 }

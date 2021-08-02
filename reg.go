@@ -64,10 +64,10 @@ func GetBinaryValue(key registry.Key, name string) []byte {
 	return value
 }
 
-func GetDWORDint32Value(key registry.Key, name string) int32 {
+func GetDWORDuint32Value(key registry.Key, name string) uint32 {
 	buf := make([]byte, 4)
 	key.GetValue(name, buf)
-	return int32(littleEndian_Uint16(buf))
+	return uint32(littleEndian_Uint16(buf))
 }
 
 func GetDWORDHexValue(key registry.Key, name string) string {
@@ -87,13 +87,19 @@ func setMSIMode(item *Device) {
 		if err := k.SetDWordValue("MSISupported", 1); err != nil {
 			log.Println(err)
 		}
+
+		if item.MaxMSILimit != 0 {
+			if err := k.SetDWordValue("MessageNumberLimit", uint32(item.MaxMSILimit)); err != nil {
+				log.Println(err)
+			}
+		}
 	} else {
 		k, err = registry.OpenKey(item.reg, `Interrupt Management\MessageSignaledInterruptProperties`, registry.ALL_ACCESS)
 		if err != nil {
 			log.Println(err)
 		}
-		err = registry.DeleteKey(item.reg, `Interrupt Management\MessageSignaledInterruptProperties`)
-		if err != nil {
+
+		if err := registry.DeleteKey(item.reg, `Interrupt Management\MessageSignaledInterruptProperties`); err != nil {
 			log.Println(err)
 		}
 	}
@@ -107,24 +113,34 @@ func setAffinityPolicy(item *Device) {
 	var err error
 
 	if item.DevicePolicy == 0 && item.DevicePriority == 0 {
+
 		k, err = registry.OpenKey(item.reg, `Interrupt Management\Affinity Policy`, registry.ALL_ACCESS)
 		if err != nil {
 			log.Println(err)
 		}
-		err = registry.DeleteKey(item.reg, `Interrupt Management\Affinity Policy`)
-		if err != nil {
+
+		if err := registry.DeleteKey(item.reg, `Interrupt Management\Affinity Policy`); err != nil {
 			log.Println(err)
 		}
+
 	} else {
+
 		k, _, err = registry.CreateKey(item.reg, `Interrupt Management\Affinity Policy`, registry.ALL_ACCESS)
 		if err != nil {
 			log.Println(err)
 		}
 
-		if err := k.SetDWordValue("DevicePolicy", uint32(item.DevicePolicy)); err != nil {
+		if err := k.SetDWordValue("DevicePolicy", item.DevicePolicy); err != nil {
 			log.Println(err)
 		}
-		if err := k.SetDWordValue("DevicePriority", uint32(item.DevicePriority)); err != nil {
+
+		if item.DevicePolicy != 4 {
+			k.DeleteValue("AssignmentSetOverride")
+		}
+
+		if item.DevicePriority == 0 {
+			k.DeleteValue("DevicePriority")
+		} else if err := k.SetDWordValue("DevicePriority", item.DevicePriority); err != nil {
 			log.Println(err)
 		}
 
@@ -132,6 +148,7 @@ func setAffinityPolicy(item *Device) {
 		if err := k.SetBinaryValue("AssignmentSetOverride", AssignmentSetOverrideByte[:clen(AssignmentSetOverrideByte)]); err != nil {
 			log.Println(err)
 		}
+
 	}
 	if err := k.Close(); err != nil {
 		log.Println(err)

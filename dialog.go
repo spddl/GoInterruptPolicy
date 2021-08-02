@@ -46,6 +46,7 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 	var acceptPB, cancelPB *walk.PushButton
 	var cpuArrayCom *walk.Composite
 	var devicePolicyCB, devicePriorityCB *walk.ComboBox
+	var deviceMessageNumberLimitNE *walk.NumberEdit
 
 	return Dialog{
 		AssignTo:      &dlg,
@@ -62,13 +63,17 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 			Width:  300,
 			Height: 300,
 		},
-		Layout: VBox{},
+		Layout: VBox{
+			MarginsZero: true,
+		},
 		Children: []Widget{
 			Composite{
 				Layout: Grid{Columns: 2},
 				Children: []Widget{
 					Composite{
-						Layout: Grid{Columns: 2},
+						Layout: Grid{
+							Columns: 2,
+						},
 						Children: []Widget{
 							Label{
 								Text: "Name:",
@@ -90,9 +95,16 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 							Label{
 								Text: Bind("device.DevObjName == '' ? 'N/A' : device.DevObjName"),
 							},
+						},
+					},
+
+					GroupBox{
+						Title:   "Message Signaled-Based Interrupts",
+						Visible: device.MsiSupported != 2,
+						Layout:  Grid{Columns: 1},
+						Children: []Widget{
 
 							CheckBox{
-								ColumnSpan:     2,
 								Name:           "MsiSupported",
 								Text:           "MSI Mode:",
 								TextOnLeftSide: true,
@@ -101,10 +113,47 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 								OnClicked: func() {
 									if device.MsiSupported == 0 {
 										device.MsiSupported = 1
+										deviceMessageNumberLimitNE.SetEnabled(true)
 									} else {
 										device.MsiSupported = 0
+										deviceMessageNumberLimitNE.SetEnabled(false)
 									}
 								},
+							},
+
+							Composite{
+								Layout: Grid{
+									Columns:     3,
+									MarginsZero: true,
+								},
+								Children: []Widget{
+									LinkLabel{
+										Text: `MSI Limit: <a href="https://forums.guru3d.com/threads/windows-line-based-vs-message-signaled-based-interrupts-msi-tool.378044/">?</a>`,
+										OnLinkActivated: func(link *walk.LinkLabelLink) {
+											// https://stackoverflow.com/a/12076082
+											exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", link.URL()).Start()
+										},
+									},
+									NumberEdit{
+										SpinButtonsVisible: true,
+										AssignTo:           &deviceMessageNumberLimitNE,
+										Enabled:            device.MsiSupported == 1,
+										MinValue:           1,
+										MaxValue:           hasMsiX(device.InterrupTypeMap),
+										Value:              Bind("device.MessageNumberLimit < 1.0 ? 1.0 : device.MessageNumberLimit"),
+										OnValueChanged: func() {
+											device.MessageNumberLimit = uint32(deviceMessageNumberLimitNE.Value())
+										},
+									},
+								},
+							},
+
+							Label{
+								Text: interrupType(device.InterrupTypeMap),
+							},
+
+							Label{
+								Text: Bind("device.MaxMSILimit == 0 ? '' : 'Max MSI Limit: ' + device.MaxMSILimit"),
 							},
 						},
 					},
@@ -114,7 +163,10 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 						Layout: Grid{Columns: 2},
 						Children: []Widget{
 							Composite{
-								Layout: Grid{Columns: 2},
+								Layout: Grid{
+									Columns:     2,
+									MarginsZero: true,
+								},
 								Children: []Widget{
 									LinkLabel{
 										Text: `Device Priority: <a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/miniport/ne-miniport-_irq_priority">?</a>`,
@@ -130,9 +182,10 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 										DisplayMember: "Name",
 										Model:         IrqPriority(),
 										OnCurrentIndexChanged: func() {
-											device.DevicePriority = int32(devicePriorityCB.CurrentIndex())
+											device.DevicePriority = uint32(devicePriorityCB.CurrentIndex())
 										},
 									},
+
 									LinkLabel{
 										Text: `Device Policy: <a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/miniport/ne-miniport-_irq_device_policy">?</a>`,
 										OnLinkActivated: func(link *walk.LinkLabelLink) {
@@ -147,11 +200,11 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 										DisplayMember: "Name",
 										Model:         IrqPolicy(),
 										OnCurrentIndexChanged: func() {
-											device.DevicePolicy = int32(devicePolicyCB.CurrentIndex())
+											device.DevicePolicy = uint32(devicePolicyCB.CurrentIndex())
 											if device.DevicePolicy == 4 {
-												cpuArrayCom.SetEnabled(true)
+												cpuArrayCom.SetVisible(true)
 											} else {
-												cpuArrayCom.SetEnabled(false)
+												cpuArrayCom.SetVisible(false)
 											}
 										},
 									},
@@ -161,7 +214,7 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 							Composite{
 								Alignment: AlignHCenterVCenter,
 								AssignTo:  &cpuArrayCom,
-								Enabled:   Bind("device.DevicePolicy == 4"),
+								Visible:   Bind("device.DevicePolicy == 4"),
 								Layout:    Grid{Columns: 2},
 								Children:  CheckBoxList(CPUArray, &device.AssignmentSetOverride),
 							},
@@ -178,7 +231,7 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 						return "", nil
 					},
 					"viewAsHex": func(args ...interface{}) (interface{}, error) {
-						if args[0].(Bits) == Bits(0) {
+						if args[0].(Bits) == ZeroBit {
 							return "N/A", nil
 						}
 						bits := args[0].(Bits)
@@ -212,6 +265,7 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 					},
 				},
 			},
+			VSpacer{},
 			Composite{
 				Layout: HBox{},
 				Children: []Widget{
@@ -257,4 +311,26 @@ func CheckBoxList(names []string, bits *Bits) []Widget {
 		})
 	}
 	return children
+}
+
+// https://docs.microsoft.com/de-de/windows-hardware/drivers/kernel/enabling-message-signaled-interrupts-in-the-registry
+func hasMsiX(b Bits) float64 {
+	if Has(b, Bits(4)) {
+		return 2048 // MSIX
+	} else {
+		return 16 // MSI
+	}
+}
+
+func interrupType(b Bits) string {
+	if b == ZeroBit {
+		return ""
+	}
+	var types []string
+	for bit, name := range InterrupTypeMap {
+		if Has(b, bit) {
+			types = append(types, name)
+		}
+	}
+	return "Interrup Type: " + strings.Join(types, ", ")
 }

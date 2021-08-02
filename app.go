@@ -67,11 +67,12 @@ func main() {
 						Title:     "MSI Mode",
 						Alignment: AlignCenter,
 						FormatFunc: func(value interface{}) string {
-							if value.(int32) == 0 {
+							if value.(uint32) == 0 {
 								return "✖"
-							} else {
+							} else if value.(uint32) == 1 {
 								return "✔"
 							}
+							return ""
 						},
 					},
 					{
@@ -79,7 +80,7 @@ func main() {
 						Title: "Device Policy",
 						FormatFunc: func(value interface{}) string {
 							// https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/interrupt-affinity-and-priority
-							switch value.(int32) {
+							switch value.(uint32) {
 							case IrqPolicyMachineDefault: // 0x00
 								return "Default"
 							case IrqPolicyAllCloseProcessors: // 0x01
@@ -101,7 +102,7 @@ func main() {
 						Name:  "DevicePriority",
 						Title: "Device Priority",
 						FormatFunc: func(value interface{}) string {
-							switch value.(int32) {
+							switch value.(uint32) {
 							case 0:
 								return "Undefined"
 							case 1:
@@ -186,7 +187,7 @@ func (mw *MyMainWindow) lb_ItemActivated() {
 	if err != nil {
 		log.Print(err)
 	}
-	if result == 2 { // cancel
+	if result == 0 || result == 2 { // cancel
 		mw.model.items[mw.tv.CurrentIndex()] = orgItem
 		return
 	}

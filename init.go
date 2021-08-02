@@ -21,23 +21,25 @@ type Device struct {
 	LastChange          time.Time
 
 	// AffinityPolicy
-	DevicePolicy          int32
-	DevicePriority        int32
+	DevicePolicy          uint32
+	DevicePriority        uint32
 	AssignmentSetOverride Bits
 
 	// MessageSignaledInterruptProperties
-	MessageNumberLimit string
-	MsiSupported       int32
+	MsiSupported       uint32
+	MessageNumberLimit uint32
+	MaxMSILimit        uint32
+	InterrupTypeMap    Bits
 }
 
 const (
 	// https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/interrupt-affinity-and-priority
-	IrqPolicyMachineDefault                    = iota // 0x00
-	IrqPolicyAllCloseProcessors                = iota // 0x01
-	IrqPolicyOneCloseProcessor                 = iota // 0x02
-	IrqPolicyAllProcessorsInMachine            = iota // 0x03
-	IrqPolicySpecifiedProcessors               = iota // 0x04
-	IrqPolicySpreadMessagesAcrossAllProcessors = iota // 0x05
+	IrqPolicyMachineDefault                    = iota // 0
+	IrqPolicyAllCloseProcessors                       // 1
+	IrqPolicyOneCloseProcessor                        // 2
+	IrqPolicyAllProcessorsInMachine                   // 3
+	IrqPolicySpecifiedProcessors                      // 4
+	IrqPolicySpreadMessagesAcrossAllProcessors        // 5
 )
 
 type Bits uint64
@@ -45,7 +47,16 @@ type Bits uint64
 var CPUMap map[Bits]string
 var CPUArray []string
 var CPUBits []Bits
+var InterrupTypeMap = map[Bits]string{
+	0: "unknown",
+	1: "LineBased",
+	2: "Msi",
+
+	4: "MsiX",
+}
 var sysInfo SystemInfo
+
+const ZeroBit = Bits(0)
 
 func Set(b, flag Bits) Bits    { return b | flag }
 func Clear(b, flag Bits) Bits  { return b &^ flag }
