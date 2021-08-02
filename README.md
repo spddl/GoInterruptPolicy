@@ -1,5 +1,5 @@
 # GoInterruptPolicy
 
-I just tried to create a better version of the "Interrupt Affinity Policy" and "MSI Mode" Tool
+I just tried to create a better version of the "Interrupt Affinity Policy Tool"
 
-![screenshot](https://i.imgur.com/MdcOHbh.png)
+![screen](https://i.imgur.com/bICUuDS.png)
