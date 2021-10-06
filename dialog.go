@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os/exec"
+	"sort"
 	"strings"
 
 	"github.com/lxn/walk"
@@ -149,7 +150,7 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 							},
 
 							Label{
-								Text: interrupType(device.InterrupTypeMap),
+								Text: "Interrup Type: " + interrupType(device.InterrupTypeMap),
 							},
 
 							Label{
@@ -332,5 +333,6 @@ func interrupType(b Bits) string {
 			types = append(types, name)
 		}
 	}
-	return "Interrup Type: " + strings.Join(types, ", ")
+	sort.Strings(types)
+	return strings.Join(types, ", ")
 }

@@ -94,7 +94,7 @@ func main() {
 							case IrqPolicySpreadMessagesAcrossAllProcessors: // 0x05
 								return "Spread Messages Across All Proc"
 							default:
-								return fmt.Sprintf("%d", value.(int))
+								return fmt.Sprintf("%d", value.(uint32))
 							}
 						},
 					},
@@ -112,9 +112,45 @@ func main() {
 							case 3:
 								return "High"
 							default:
-								return fmt.Sprintf("%d", value.(int))
+								return fmt.Sprintf("%d", value.(uint32))
 							}
 						},
+					},
+					{
+						Name:  "InterrupTypeMap",
+						Title: "Interrup Type",
+						FormatFunc: func(value interface{}) string {
+							return interrupType(value.(Bits))
+
+						},
+					},
+					{
+						Name:  "MessageNumberLimit",
+						Title: "MSI Limit",
+						FormatFunc: func(value interface{}) string {
+							switch value.(uint32) {
+							case 0:
+								return ""
+							default:
+								return fmt.Sprintf("%d", value.(uint32))
+							}
+						},
+					},
+					{
+						Name:  "MaxMSILimit",
+						Title: "Max MSI Limit",
+						FormatFunc: func(value interface{}) string {
+							switch value.(uint32) {
+							case 0:
+								return ""
+							default:
+								return fmt.Sprintf("%d", value.(uint32))
+							}
+						},
+					},
+					{
+						Name:  "DevObjName",
+						Title: "DevObj Name",
 					},
 					{
 						Name:  "LastChange",
