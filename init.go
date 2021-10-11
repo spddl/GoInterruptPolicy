@@ -70,9 +70,9 @@ func init() {
 	CPUMap = make(map[Bits]string, sysInfo.NumberOfProcessors)
 	var index Bits = 1
 	for i := 0; i < int(sysInfo.NumberOfProcessors); i++ {
-		name := "CPU" + strconv.Itoa(i)
-		CPUMap[index] = name
-		CPUArray = append(CPUArray, name)
+		indexString := strconv.Itoa(i)
+		CPUMap[index] = indexString
+		CPUArray = append(CPUArray, indexString)
 		CPUBits = append(CPUBits, index)
 		index *= 2
 	}

@@ -304,7 +304,7 @@ func CheckBoxList(names []string, bits *Bits) []Widget {
 		local_CPUBits := CPUBits[i]
 		children = append(children, CheckBox{
 			AssignTo: &bs[i],
-			Text:     name,
+			Text:     "CPU " + name,
 			Checked:  Has(*bits, local_CPUBits),
 			OnClicked: func() {
 				*bits = Toggle(local_CPUBits, *bits)

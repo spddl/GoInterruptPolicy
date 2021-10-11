@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/lxn/walk"
@@ -65,6 +66,7 @@ func main() {
 					{
 						Name:      "MsiSupported",
 						Title:     "MSI Mode",
+						Width:     50,
 						Alignment: AlignCenter,
 						FormatFunc: func(value interface{}) string {
 							if value.(uint32) == 0 {
@@ -99,6 +101,24 @@ func main() {
 						},
 					},
 					{
+						Name:  "AssignmentSetOverride",
+						Title: "Specified Processor",
+						FormatFunc: func(value interface{}) string {
+							if value == ZeroBit {
+								return ""
+							}
+							bits := value.(Bits)
+							var result []string
+							for bit, cpu := range CPUMap {
+								if Has(bit, bits) {
+									result = append(result, cpu)
+								}
+							}
+							sort.Strings(result)
+							return strings.Join(result, ",")
+						},
+					},
+					{
 						Name:  "DevicePriority",
 						Title: "Device Priority",
 						FormatFunc: func(value interface{}) string {
@@ -119,9 +139,9 @@ func main() {
 					{
 						Name:  "InterrupTypeMap",
 						Title: "Interrup Type",
+						Width: 120,
 						FormatFunc: func(value interface{}) string {
 							return interrupType(value.(Bits))
-
 						},
 					},
 					{
