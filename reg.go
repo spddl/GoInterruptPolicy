@@ -88,8 +88,8 @@ func setMSIMode(item *Device) {
 			log.Println(err)
 		}
 
-		if item.MaxMSILimit != 0 {
-			if err := k.SetDWordValue("MessageNumberLimit", uint32(item.MaxMSILimit)); err != nil {
+		if item.MessageNumberLimit != 0 {
+			if err := k.SetDWordValue("MessageNumberLimit", uint32(item.MessageNumberLimit)); err != nil {
 				log.Println(err)
 			}
 		}

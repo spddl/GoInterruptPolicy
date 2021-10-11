@@ -227,7 +227,8 @@ func (mw *MyMainWindow) lb_ItemActivated() {
 		mw.model.items[mw.tv.CurrentIndex()] = orgItem
 		return
 	}
-	if orgItem.MsiSupported != newItem.MsiSupported {
+
+	if orgItem.MsiSupported != newItem.MsiSupported || orgItem.MessageNumberLimit != newItem.MessageNumberLimit {
 		setMSIMode(newItem)
 		mw.sbi.SetText("Restart required")
 	}
