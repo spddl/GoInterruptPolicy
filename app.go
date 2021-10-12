@@ -221,7 +221,7 @@ func main() {
 			maxDeviceDesc = newDeviceDesc
 		}
 	}
-	if 150 < maxDeviceDesc {
+	if maxDeviceDesc < 150 {
 		mw.tv.Columns().At(0).SetWidth(maxDeviceDesc)
 	}
 

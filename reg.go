@@ -1,51 +1,18 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"golang.org/x/sys/windows/registry"
 )
 
-// https://stackoverflow.com/a/13657822/4509632
-func Uvarint(buf []byte) (x uint64) {
-	for i, b := range buf {
-		x = x<<8 + uint64(b)
-		if i == 7 {
-			return
-		}
-	}
-	return
-}
-
-// https://stackoverflow.com/a/27834860/4509632
 func clen(n []byte) int {
-	for i := 0; i < len(n); i++ {
-		if n[i] == 0 {
-			return i
+	for i := len(n) - 1; i >= 0; i-- {
+		if n[i] != 0 {
+			return i + 1
 		}
 	}
 	return len(n)
-}
-
-// https://github.com/golang/go/blob/master/src/encoding/binary/binary.go#L130
-func littleEndian_PutUint64(v uint64) []byte {
-	b := make([]byte, 8)
-	_ = b[7] // early bounds check to guarantee safety of writes below
-	b[0] = byte(v)
-	b[1] = byte(v >> 8)
-	b[2] = byte(v >> 16)
-	b[3] = byte(v >> 24)
-	b[4] = byte(v >> 32)
-	b[5] = byte(v >> 40)
-	b[6] = byte(v >> 48)
-	b[7] = byte(v >> 56)
-	return b
-}
-
-func littleEndian_Uint16(b []byte) uint16 {
-	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
-	return uint16(b[0]) | uint16(b[1])<<8
 }
 
 func GetStringValue(key registry.Key, name string) string {
@@ -67,13 +34,7 @@ func GetBinaryValue(key registry.Key, name string) []byte {
 func GetDWORDuint32Value(key registry.Key, name string) uint32 {
 	buf := make([]byte, 4)
 	key.GetValue(name, buf)
-	return uint32(littleEndian_Uint16(buf))
-}
-
-func GetDWORDHexValue(key registry.Key, name string) string {
-	buf := make([]byte, 4)
-	key.GetValue(name, buf)
-	return fmt.Sprintf("%#02x", littleEndian_Uint16(buf))
+	return btoi32(buf)
 }
 
 func setMSIMode(item *Device) {
@@ -144,7 +105,7 @@ func setAffinityPolicy(item *Device) {
 			log.Println(err)
 		}
 
-		AssignmentSetOverrideByte := littleEndian_PutUint64(uint64(item.AssignmentSetOverride))
+		AssignmentSetOverrideByte := i64tob(uint64(item.AssignmentSetOverride))
 		if err := k.SetBinaryValue("AssignmentSetOverride", AssignmentSetOverrideByte[:clen(AssignmentSetOverrideByte)]); err != nil {
 			log.Println(err)
 		}

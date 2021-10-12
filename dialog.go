@@ -275,7 +275,7 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 						AssignTo: &acceptPB,
 						Text:     "OK",
 						OnClicked: func() {
-							if device.DevicePolicy == 4 && device.AssignmentSetOverride == Bits(0) {
+							if device.DevicePolicy == 4 && device.AssignmentSetOverride == ZeroBit {
 								walk.MsgBox(dlg, "Invalid Option", "The affinity mask must contain at least one processor.", walk.MsgBoxIconError)
 							} else {
 								if err := db.Submit(); err != nil {

@@ -421,24 +421,24 @@ func (data *DrvInfoDetailData) GetCompatIDs() []string {
 }
 
 func (data *DrvInfoDetailData) getBuf() []uint16 {
-	len := (data.size - uint32(unsafe.Offsetof(data.hardwareID))) / 2
+	length := (data.size - uint32(unsafe.Offsetof(data.hardwareID))) / 2
 	sl := struct {
 		addr *uint16
 		len  int
 		cap  int
-	}{&data.hardwareID[0], int(len), int(len)}
+	}{&data.hardwareID[0], int(length), int(length)}
 	return *(*[]uint16)(unsafe.Pointer(&sl))
 }
 
 // IsCompatible method tests if given hardware ID matches the driver or is listed on the compatible ID list.
 func (data *DrvInfoDetailData) IsCompatible(hwid string) bool {
 	hwidLC := strings.ToLower(hwid)
-	if strings.ToLower(data.GetHardwareID()) == hwidLC {
+	if strings.EqualFold(data.GetHardwareID(), hwidLC) {
 		return true
 	}
 	a := data.GetCompatIDs()
 	for i := range a {
-		if strings.ToLower(a[i]) == hwidLC {
+		if strings.EqualFold(a[i], hwidLC) {
 			return true
 		}
 	}

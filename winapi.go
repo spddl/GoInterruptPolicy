@@ -43,12 +43,12 @@ func FindAllDevices() []Device {
 
 		valProp, err := GetDeviceProperty(handle, idata, DEVPKEY_PciRootBus_PCIExpressNativePMEControl)
 		if err == nil {
-			dev.InterrupTypeMap = Bits(littleEndian_Uint16(valProp))
+			dev.InterrupTypeMap = Bits(btoi16(valProp))
 		}
 
 		valProp, err = GetDeviceProperty(handle, idata, DEVPKEY_PciRootBus_MaxMSILimit)
 		if err == nil {
-			dev.MaxMSILimit = uint32(littleEndian_Uint16(valProp))
+			dev.MaxMSILimit = btoi32(valProp)
 		}
 
 		val, err = SetupDiGetDeviceRegistryProperty(handle, idata, SPDRP_FRIENDLYNAME)
@@ -79,7 +79,11 @@ func FindAllDevices() []Device {
 		AssignmentSetOverrideByte := GetBinaryValue(affinityPolicyKey, "AssignmentSetOverride") // REG_BINARY
 		affinityPolicyKey.Close()
 
-		dev.AssignmentSetOverride = Bits(Uvarint(AssignmentSetOverrideByte))
+		if len(AssignmentSetOverrideByte) != 0 {
+			AssignmentSetOverrideBytes := make([]byte, 8)
+			copy(AssignmentSetOverrideBytes, AssignmentSetOverrideByte)
+			dev.AssignmentSetOverride = Bits(btoi64(AssignmentSetOverrideBytes))
+		}
 
 		if dev.InterrupTypeMap != ZeroBit {
 			messageSignaledInterruptPropertiesKey, _ := registry.OpenKey(dev.reg, `Interrupt Management\MessageSignaledInterruptProperties`, registry.QUERY_VALUE)
