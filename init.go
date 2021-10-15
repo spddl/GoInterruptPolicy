@@ -9,6 +9,7 @@ import (
 )
 
 type Device struct {
+	Idata               DevInfoData
 	reg                 registry.Key
 	IrqPolicy           int32
 	DeviceDesc          string
@@ -56,6 +57,7 @@ var InterrupTypeMap = map[Bits]string{
 }
 
 var sysInfo SystemInfo
+var handle DevInfo
 
 const ZeroBit = Bits(0)
 

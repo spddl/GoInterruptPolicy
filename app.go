@@ -14,7 +14,9 @@ import (
 )
 
 func main() {
-	devices := FindAllDevices()
+	var devices []Device
+	devices, handle = FindAllDevices()
+	defer SetupDiDestroyDeviceInfoList(handle)
 
 	// Sortiert das Array nach Namen
 	sort.Slice(devices, func(i, j int) bool {
@@ -211,7 +213,8 @@ func main() {
 			},
 		},
 	}).Create(); err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 
 	var maxDeviceDesc int
@@ -256,6 +259,19 @@ func (mw *MyMainWindow) lb_ItemActivated() {
 	if orgItem.DevicePolicy != newItem.DevicePolicy || orgItem.DevicePriority != newItem.DevicePriority || orgItem.AssignmentSetOverride != newItem.AssignmentSetOverride {
 		setAffinityPolicy(newItem)
 		mw.sbi.SetText("Restart required")
+	}
+
+	if mw.sbi.Text() != "" {
+		if walk.MsgBox(nil, "Restart Device?", `Your changes will not take effect until the device is restarted.
+
+Would you like to attempt to restart the device now?`, walk.MsgBoxYesNo) == 6 {
+			err := SetupDiRestartDevices(handle, &newItem.Idata)
+			if err != nil {
+				log.Println(err)
+			}
+
+			mw.sbi.SetText("")
+		}
 	}
 }
 

@@ -14,23 +14,24 @@ var (
 	procSetupDiGetClassDevsW = modSetupapi.NewProc("SetupDiGetClassDevsW")
 )
 
-func FindAllDevices() []Device {
+func FindAllDevices() ([]Device, DevInfo) {
 	var allDevices []Device
-	handle, err := SetupDiGetClassDevs(nil, nil, 0, 0xe)
+	handle, err := SetupDiGetClassDevs(nil, nil, 0, uint32(DIGCF_ALLCLASSES|DIGCF_PRESENT|DIGCF_PROFILE))
 	if err != nil {
 		panic(err)
 	}
-	defer SetupDiDestroyDeviceInfoList(handle)
 
 	var index = 0
 	for {
 		idata, err := SetupDiEnumDeviceInfo(handle, index)
-		if err != nil {
+		if err != nil { // ERROR_NO_MORE_ITEMS
 			break
 		}
 		index++
-		dev := Device{}
 
+		dev := Device{
+			Idata: *idata,
+		}
 		val, err := SetupDiGetDeviceRegistryProperty(handle, idata, SPDRP_DEVICEDESC)
 		if err == nil {
 			if val.(string) == "" {
@@ -96,7 +97,7 @@ func FindAllDevices() []Device {
 
 		allDevices = append(allDevices, dev)
 	}
-	return allDevices
+	return allDevices, handle
 }
 
 func SetupDiGetClassDevs(classGuid *windows.GUID, enumerator *uint16, hwndParent uintptr, flags uint32) (handle DevInfo, err error) {

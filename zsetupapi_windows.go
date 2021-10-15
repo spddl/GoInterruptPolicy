@@ -65,6 +65,7 @@ var (
 	procSetupDiGetSelectedDevice          = modsetupapi.NewProc("SetupDiGetSelectedDevice")
 	procSetupDiSetSelectedDevice          = modsetupapi.NewProc("SetupDiSetSelectedDevice")
 	procSetupDiGetDevicePropertyW         = modsetupapi.NewProc("SetupDiGetDevicePropertyW")
+	procSetupDiRestartDevices             = modsetupapi.NewProc("SetupDiRestartDevices")
 )
 
 func setupDiCreateDeviceInfoListEx(classGUID *windows.GUID, hwndParent uintptr, machineName *uint16, reserved uintptr) (handle DevInfo, err error) {
@@ -226,7 +227,13 @@ func setupDiGetClassDevsEx(classGUID *windows.GUID, Enumerator *uint16, hwndPare
 }
 
 func SetupDiCallClassInstaller(installFunction DI_FUNCTION, deviceInfoSet DevInfo, deviceInfoData *DevInfoData) (err error) {
-	r1, _, e1 := syscall.Syscall(procSetupDiCallClassInstaller.Addr(), 3, uintptr(installFunction), uintptr(deviceInfoSet), uintptr(unsafe.Pointer(deviceInfoData)))
+	r1, _, e1 := syscall.Syscall(
+		procSetupDiCallClassInstaller.Addr(),
+		3,
+		uintptr(installFunction),
+		uintptr(deviceInfoSet),
+		uintptr(unsafe.Pointer(deviceInfoData)),
+	)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
@@ -310,8 +317,37 @@ func SetupDiSetDeviceInstallParams(deviceInfoSet DevInfo, deviceInfoData *DevInf
 	return
 }
 
+// WINSETUPAPI BOOL SetupDiRestartDevices(
+//   [in]      HDEVINFO         DeviceInfoSet,
+//   [in, out] PSP_DEVINFO_DATA DeviceInfoData
+// );
+func SetupDiRestartDevices(deviceInfoSet DevInfo, deviceInfoData *DevInfoData) (err error) {
+	r1, _, e1 := syscall.Syscall(
+		procSetupDiRestartDevices.Addr(), 2,
+		uintptr(deviceInfoSet),
+		uintptr(unsafe.Pointer(deviceInfoData)),
+		0,
+	)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
 func SetupDiSetClassInstallParams(deviceInfoSet DevInfo, deviceInfoData *DevInfoData, classInstallParams *ClassInstallHeader, classInstallParamsSize uint32) (err error) {
-	r1, _, e1 := syscall.Syscall6(procSetupDiSetClassInstallParamsW.Addr(), 4, uintptr(deviceInfoSet), uintptr(unsafe.Pointer(deviceInfoData)), uintptr(unsafe.Pointer(classInstallParams)), uintptr(classInstallParamsSize), 0, 0)
+	r1, _, e1 := syscall.Syscall6(procSetupDiSetClassInstallParamsW.Addr(),
+		4,
+		uintptr(deviceInfoSet),
+		uintptr(unsafe.Pointer(deviceInfoData)),
+		uintptr(unsafe.Pointer(classInstallParams)),
+		uintptr(classInstallParamsSize),
+		0,
+		0,
+	)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
