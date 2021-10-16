@@ -253,15 +253,13 @@ func (mw *MyMainWindow) lb_ItemActivated() {
 
 	if orgItem.MsiSupported != newItem.MsiSupported || orgItem.MessageNumberLimit != newItem.MessageNumberLimit {
 		setMSIMode(newItem)
-		mw.sbi.SetText("Restart required")
 	}
 
 	if orgItem.DevicePolicy != newItem.DevicePolicy || orgItem.DevicePriority != newItem.DevicePriority || orgItem.AssignmentSetOverride != newItem.AssignmentSetOverride {
 		setAffinityPolicy(newItem)
-		mw.sbi.SetText("Restart required")
 	}
 
-	if mw.sbi.Text() != "" {
+	if orgItem.MsiSupported != newItem.MsiSupported || orgItem.MessageNumberLimit != newItem.MessageNumberLimit || orgItem.DevicePolicy != newItem.DevicePolicy || orgItem.DevicePriority != newItem.DevicePriority || orgItem.AssignmentSetOverride != newItem.AssignmentSetOverride {
 		if walk.MsgBox(nil, "Restart Device?", `Your changes will not take effect until the device is restarted.
 
 Would you like to attempt to restart the device now?`, walk.MsgBoxYesNo) == 6 {
@@ -269,8 +267,8 @@ Would you like to attempt to restart the device now?`, walk.MsgBoxYesNo) == 6 {
 			if err != nil {
 				log.Println(err)
 			}
-
-			mw.sbi.SetText("")
+		} else {
+			mw.sbi.SetText("Restart required")
 		}
 	}
 }
