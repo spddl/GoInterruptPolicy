@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +18,65 @@ import (
 func main() {
 	var devices []Device
 	devices, handle = FindAllDevices()
+
+	if CLIMode {
+		var newItem *Device
+		for i := 0; i < len(devices); i++ {
+			if devices[i].DevObjName == flagDevObjName {
+				newItem = &devices[i]
+				break
+			}
+		}
+		if newItem == nil {
+			SetupDiDestroyDeviceInfoList(handle)
+			os.Exit(1)
+		}
+
+		var assignmentSetOverride Bits
+		if flagCPU != "" {
+			cpuarray := strings.Split(flagCPU, ",")
+			for _, val := range cpuarray {
+				i, err := strconv.Atoi(val)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+				assignmentSetOverride = Set(assignmentSetOverride, CPUBits[i])
+			}
+
+		}
+
+		if flagMsiSupported != -1 || flagMessageNumberLimit != -1 {
+			if flagMsiSupported != -1 {
+				newItem.MsiSupported = uint32(flagMsiSupported)
+			}
+			if flagMessageNumberLimit != -1 {
+				newItem.MessageNumberLimit = uint32(flagMessageNumberLimit)
+			}
+			setMSIMode(newItem)
+		}
+
+		if flagDevicePolicy != -1 || flagDevicePriority != -1 || assignmentSetOverride != ZeroBit {
+			if flagDevicePolicy != -1 {
+				newItem.DevicePolicy = uint32(flagDevicePolicy)
+			}
+			if flagDevicePriority != -1 {
+				newItem.DevicePriority = uint32(flagDevicePriority)
+			}
+			if assignmentSetOverride != ZeroBit {
+				newItem.AssignmentSetOverride = assignmentSetOverride
+			}
+			setAffinityPolicy(newItem)
+		}
+
+		if flagRestart {
+			if err := SetupDiRestartDevices(handle, &newItem.Idata); err != nil {
+				log.Println(err)
+			}
+		}
+		SetupDiDestroyDeviceInfoList(handle)
+		os.Exit(0)
+	}
 	defer SetupDiDestroyDeviceInfoList(handle)
 
 	// Sortiert das Array nach Namen
@@ -39,6 +100,7 @@ func main() {
 			Width:  750,
 			Height: 600,
 		},
+		Background: SolidColorBrush{Color: walk.RGB(32, 32, 32)},
 		Layout: VBox{
 			MarginsZero: true,
 			SpacingZero: true,

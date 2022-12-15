@@ -93,8 +93,9 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 							Label{
 								Text: "DevObj Name:",
 							},
-							Label{
-								Text: Bind("device.DevObjName == '' ? 'N/A' : device.DevObjName"),
+							LineEdit{
+								Text:     Bind("device.DevObjName == '' ? 'N/A' : device.DevObjName"),
+								ReadOnly: true,
 							},
 						},
 					},
