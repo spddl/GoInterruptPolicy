@@ -44,7 +44,7 @@ func FindAllDevices() ([]Device, DevInfo) {
 
 		valProp, err := GetDeviceProperty(handle, idata, DEVPKEY_PciRootBus_PCIExpressNativePMEControl)
 		if err == nil {
-			dev.InterrupTypeMap = Bits(btoi16(valProp))
+			dev.InterruptTypeMap = Bits(btoi16(valProp))
 		}
 
 		valProp, err = GetDeviceProperty(handle, idata, DEVPKEY_PciRootBus_MaxMSILimit)
@@ -86,7 +86,7 @@ func FindAllDevices() ([]Device, DevInfo) {
 			dev.AssignmentSetOverride = Bits(btoi64(AssignmentSetOverrideBytes))
 		}
 
-		if dev.InterrupTypeMap != ZeroBit {
+		if dev.InterruptTypeMap != ZeroBit {
 			messageSignaledInterruptPropertiesKey, _ := registry.OpenKey(dev.reg, `Interrupt Management\MessageSignaledInterruptProperties`, registry.QUERY_VALUE)
 			dev.MessageNumberLimit = GetDWORDuint32Value(messageSignaledInterruptPropertiesKey, "MessageNumberLimit") // REG_DWORD https://docs.microsoft.com/de-de/windows-hardware/drivers/kernel/enabling-message-signaled-interrupts-in-the-registry
 			dev.MsiSupported = GetDWORDuint32Value(messageSignaledInterruptPropertiesKey, "MSISupported")             // REG_DWORD

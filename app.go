@@ -206,14 +206,14 @@ func main() {
 						},
 					},
 					{
-						Name:  "InterrupTypeMap",
-						Title: "Interrup Type",
+						Name:  "InterruptTypeMap",
+						Title: "Interrupt Type",
 						Width: 120,
 						FormatFunc: func(value interface{}) string {
-							return interrupType(value.(Bits))
+							return interruptType(value.(Bits))
 						},
 						LessFunc: func(i, j int) bool {
-							return mw.model.items[i].InterrupTypeMap < mw.model.items[j].InterrupTypeMap
+							return mw.model.items[i].InterruptTypeMap < mw.model.items[j].InterruptTypeMap
 						},
 					},
 					{

@@ -30,7 +30,7 @@ type Device struct {
 	MsiSupported       uint32
 	MessageNumberLimit uint32
 	MaxMSILimit        uint32
-	InterrupTypeMap    Bits
+	InterruptTypeMap   Bits
 }
 
 const (
@@ -48,7 +48,7 @@ type Bits uint64
 var CPUMap map[Bits]string
 var CPUArray []string
 var CPUBits []Bits
-var InterrupTypeMap = map[Bits]string{
+var InterruptTypeMap = map[Bits]string{
 	0: "unknown",
 	1: "LineBased",
 	2: "Msi",

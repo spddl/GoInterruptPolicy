@@ -141,7 +141,7 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 										AssignTo:           &deviceMessageNumberLimitNE,
 										Enabled:            device.MsiSupported == 1,
 										MinValue:           1,
-										MaxValue:           hasMsiX(device.InterrupTypeMap),
+										MaxValue:           hasMsiX(device.InterruptTypeMap),
 										Value:              Bind("device.MessageNumberLimit < 1.0 ? 1.0 : device.MessageNumberLimit"),
 										OnValueChanged: func() {
 											device.MessageNumberLimit = uint32(deviceMessageNumberLimitNE.Value())
@@ -151,7 +151,7 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 							},
 
 							Label{
-								Text: "Interrup Type: " + interrupType(device.InterrupTypeMap),
+								Text: "Interrupt Type: " + interruptType(device.InterruptTypeMap),
 							},
 
 							Label{
@@ -324,12 +324,12 @@ func hasMsiX(b Bits) float64 {
 	}
 }
 
-func interrupType(b Bits) string {
+func interruptType(b Bits) string {
 	if b == ZeroBit {
 		return ""
 	}
 	var types []string
-	for bit, name := range InterrupTypeMap {
+	for bit, name := range InterruptTypeMap {
 		if Has(b, bit) {
 			types = append(types, name)
 		}
