@@ -31,6 +31,7 @@ func main() {
 			SetupDiDestroyDeviceInfoList(handle)
 			os.Exit(1)
 		}
+		orgItem := *newItem
 
 		var assignmentSetOverride Bits
 		if flagCPU != "" {
@@ -69,7 +70,8 @@ func main() {
 			setAffinityPolicy(newItem)
 		}
 
-		if flagRestart {
+		changed := orgItem.MsiSupported != newItem.MsiSupported || orgItem.MessageNumberLimit != newItem.MessageNumberLimit || orgItem.DevicePolicy != newItem.DevicePolicy || orgItem.DevicePriority != newItem.DevicePriority || orgItem.AssignmentSetOverride != newItem.AssignmentSetOverride
+		if flagRestart || (flagRestartOnChange && changed) {
 			if err := SetupDiRestartDevices(handle, &newItem.Idata); err != nil {
 				log.Println(err)
 			}

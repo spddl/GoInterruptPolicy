@@ -14,6 +14,7 @@ var (
 	flagMessageNumberLimit int
 	flagCPU                string
 	flagRestart            bool
+	flagRestartOnChange    bool
 	flagHelp               bool
 
 	CLIMode bool
@@ -27,6 +28,7 @@ func init() {
 	flag.IntVar(&flagMsiSupported, "msisupported", -1, "0=Off, 1=On")
 	flag.IntVar(&flagMessageNumberLimit, "msilimit", -1, "Message Signaled Interrupt Limit")
 	flag.BoolVar(&flagRestart, "restart", false, "Restart target device")
+	flag.BoolVar(&flagRestartOnChange, "restart-on-change", false, "Restart target device on change")
 	flag.BoolVar(&flagHelp, "help", false, "Print Defaults")
 
 	flag.Parse()
@@ -36,7 +38,7 @@ func init() {
 		os.Exit(0)
 	}
 
-	if flagDevObjName != "" || flagDevicePriority != -1 || flagDevicePolicy != -1 || flagMsiSupported != -1 || flagMessageNumberLimit != -1 || flagRestart {
+	if flagDevObjName != "" || flagDevicePriority != -1 || flagDevicePolicy != -1 || flagMsiSupported != -1 || flagMessageNumberLimit != -1 || flagRestart || flagRestartOnChange {
 		CLIMode = true
 	}
 
