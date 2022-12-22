@@ -183,6 +183,9 @@ func main() {
 							sort.Strings(result)
 							return strings.Join(result, ",")
 						},
+						LessFunc: func(i, j int) bool {
+							return mw.model.items[i].AssignmentSetOverride < mw.model.items[j].AssignmentSetOverride
+						},
 					},
 					{
 						Name:  "DevicePriority",
@@ -208,6 +211,9 @@ func main() {
 						Width: 120,
 						FormatFunc: func(value interface{}) string {
 							return interrupType(value.(Bits))
+						},
+						LessFunc: func(i, j int) bool {
+							return mw.model.items[i].InterrupTypeMap < mw.model.items[j].InterrupTypeMap
 						},
 					},
 					{
