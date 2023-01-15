@@ -67,7 +67,7 @@ func FindAllDevices() ([]Device, DevInfo) {
 			dev.LocationInformation = val.(string)
 		}
 
-		dev.reg, _ = SetupDiOpenDevRegKey(handle, idata, DICS_FLAG_GLOBAL, 0, DIREG_DEV, windows.KEY_READ)
+		dev.reg, _ = SetupDiOpenDevRegKey(handle, idata, DICS_FLAG_GLOBAL, 0, DIREG_DEV, windows.KEY_SET_VALUE)
 
 		keyinfo, err := dev.reg.Stat()
 		if err == nil {
@@ -101,7 +101,7 @@ func FindAllDevices() ([]Device, DevInfo) {
 }
 
 func SetupDiGetClassDevs(classGuid *windows.GUID, enumerator *uint16, hwndParent uintptr, flags uint32) (handle DevInfo, err error) {
-	r0, _, e1 := syscall.Syscall6(procSetupDiGetClassDevsW.Addr(), 4, uintptr(unsafe.Pointer(classGuid)), uintptr(unsafe.Pointer(enumerator)), uintptr(hwndParent), uintptr(flags), 0, 0)
+	r0, _, e1 := syscall.SyscallN(procSetupDiGetClassDevsW.Addr(), uintptr(unsafe.Pointer(classGuid)), uintptr(unsafe.Pointer(enumerator)), uintptr(hwndParent), uintptr(flags))
 	handle = DevInfo(r0)
 	if handle == DevInfo(windows.InvalidHandle) {
 		if e1 != 0 {
