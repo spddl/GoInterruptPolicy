@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/lxn/walk"
 
@@ -44,7 +45,6 @@ func main() {
 				}
 				assignmentSetOverride = Set(assignmentSetOverride, CPUBits[i])
 			}
-
 		}
 
 		if flagMsiSupported != -1 || flagMessageNumberLimit != -1 {
@@ -72,8 +72,42 @@ func main() {
 
 		changed := orgItem.MsiSupported != newItem.MsiSupported || orgItem.MessageNumberLimit != newItem.MessageNumberLimit || orgItem.DevicePolicy != newItem.DevicePolicy || orgItem.DevicePriority != newItem.DevicePriority || orgItem.AssignmentSetOverride != newItem.AssignmentSetOverride
 		if flagRestart || (flagRestartOnChange && changed) {
-			if err := SetupDiRestartDevices(handle, &newItem.Idata); err != nil {
+			propChangeParams := PropChangeParams{
+				ClassInstallHeader: *MakeClassInstallHeader(DIF_PROPERTYCHANGE),
+				StateChange:        DICS_PROPCHANGE,
+				Scope:              DICS_FLAG_GLOBAL,
+			}
+
+			if err := SetupDiSetClassInstallParams(handle, &newItem.Idata, &propChangeParams.ClassInstallHeader, uint32(unsafe.Sizeof(propChangeParams))); err != nil {
 				log.Println(err)
+				return
+			}
+
+			if err := SetupDiCallClassInstaller(DIF_PROPERTYCHANGE, handle, &newItem.Idata); err != nil {
+				log.Println(err)
+				return
+			}
+
+			if err := SetupDiSetClassInstallParams(handle, &newItem.Idata, &propChangeParams.ClassInstallHeader, uint32(unsafe.Sizeof(propChangeParams))); err != nil {
+				log.Println(err)
+				return
+			}
+
+			if err := SetupDiCallClassInstaller(DIF_PROPERTYCHANGE, handle, &newItem.Idata); err != nil {
+				log.Println(err)
+				return
+			}
+
+			DeviceInstallParams, err := SetupDiGetDeviceInstallParams(handle, &newItem.Idata)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+
+			if DeviceInstallParams.Flags&DI_NEEDREBOOT != 0 { // DI_NEEDREBOOT
+				fmt.Println("Device could not be restarted. Changes will take effect the next time you reboot.")
+			} else {
+				fmt.Println("Device successfully restarted.")
 			}
 		}
 		SetupDiDestroyDeviceInfoList(handle)
@@ -330,13 +364,47 @@ func (mw *MyMainWindow) lb_ItemActivated() {
 	}
 
 	if orgItem.MsiSupported != newItem.MsiSupported || orgItem.MessageNumberLimit != newItem.MessageNumberLimit || orgItem.DevicePolicy != newItem.DevicePolicy || orgItem.DevicePriority != newItem.DevicePriority || orgItem.AssignmentSetOverride != newItem.AssignmentSetOverride {
-		if walk.MsgBox(nil, "Restart Device?", `Your changes will not take effect until the device is restarted.
+		if walk.MsgBox(mw.WindowBase.Form(), "Restart Device?", `Your changes will not take effect until the device is restarted.
 
 Would you like to attempt to restart the device now?`, walk.MsgBoxYesNo) == 6 {
-			err := SetupDiRestartDevices(handle, &newItem.Idata)
+			propChangeParams := PropChangeParams{
+				ClassInstallHeader: *MakeClassInstallHeader(DIF_PROPERTYCHANGE),
+				StateChange:        DICS_PROPCHANGE,
+				Scope:              DICS_FLAG_GLOBAL,
+			}
+
+			if err := SetupDiSetClassInstallParams(handle, &newItem.Idata, &propChangeParams.ClassInstallHeader, uint32(unsafe.Sizeof(propChangeParams))); err != nil {
+				log.Println(err)
+				return
+			}
+
+			if err := SetupDiCallClassInstaller(DIF_PROPERTYCHANGE, handle, &newItem.Idata); err != nil {
+				log.Println(err)
+				return
+			}
+
+			if err := SetupDiSetClassInstallParams(handle, &newItem.Idata, &propChangeParams.ClassInstallHeader, uint32(unsafe.Sizeof(propChangeParams))); err != nil {
+				log.Println(err)
+				return
+			}
+
+			if err := SetupDiCallClassInstaller(DIF_PROPERTYCHANGE, handle, &newItem.Idata); err != nil {
+				log.Println(err)
+				return
+			}
+
+			DeviceInstallParams, err := SetupDiGetDeviceInstallParams(handle, &newItem.Idata)
 			if err != nil {
 				log.Println(err)
+				return
 			}
+
+			if DeviceInstallParams.Flags&DI_NEEDREBOOT != 0 {
+				walk.MsgBox(mw.WindowBase.Form(), "Notice", "Device could not be restarted. Changes will take effect the next time you reboot.", walk.MsgBoxOK)
+			} else {
+				walk.MsgBox(mw.WindowBase.Form(), "Notice", "Device successfully restarted.", walk.MsgBoxOK)
+			}
+
 		} else {
 			mw.sbi.SetText("Restart required")
 		}
