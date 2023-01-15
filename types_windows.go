@@ -24,9 +24,7 @@ const (
 	CONFIGMG_VERSION    = 0x0400
 )
 
-//
 // Define maximum string length constants
-//
 const (
 	LINE_LEN                    = 256  // Windows 9x-compatible maximum for displayable strings coming from a device INF.
 	MAX_INF_STRING_LENGTH       = 4096 // Actual maximum size of an INF string (including string substitutions).
@@ -267,14 +265,33 @@ func MakeClassInstallHeader(installFunction DI_FUNCTION) *ClassInstallHeader {
 	return hdr
 }
 
+// DICS_STATE specifies values indicating a change in a device's state
+type DICS_STATE uint32
+
+const (
+	DICS_ENABLE     DICS_STATE = 0x00000001 // The device is being enabled.
+	DICS_DISABLE    DICS_STATE = 0x00000002 // The device is being disabled.
+	DICS_PROPCHANGE DICS_STATE = 0x00000003 // The properties of the device have changed.
+	DICS_START      DICS_STATE = 0x00000004 // The device is being started (if the request is for the currently active hardware profile).
+	DICS_STOP       DICS_STATE = 0x00000005 // The device is being stopped. The driver stack will be unloaded and the CSCONFIGFLAG_DO_NOT_START flag will be set for the device.
+)
+
 // DICS_FLAG specifies the scope of a device property change
 type DICS_FLAG uint32
 
 const (
 	DICS_FLAG_GLOBAL         DICS_FLAG = 0x00000001 // make change in all hardware profiles
 	DICS_FLAG_CONFIGSPECIFIC DICS_FLAG = 0x00000002 // make change in specified profile only
-	DICS_FLAG_CONFIGGENERAL  DICS_FLAG = 0x00000004 // 1 or more hardware profile-specific changes to follow
+	DICS_FLAG_CONFIGGENERAL  DICS_FLAG = 0x00000004 // 1 or more hardware profile-specific changes to follow (obsolete)
 )
+
+// PropChangeParams is a structure corresponding to a DIF_PROPERTYCHANGE install function.
+type PropChangeParams struct {
+	ClassInstallHeader ClassInstallHeader
+	StateChange        DICS_STATE
+	Scope              DICS_FLAG
+	HwProfile          uint32
+}
 
 // DI_REMOVEDEVICE specifies the scope of the device removal
 type DI_REMOVEDEVICE uint32
@@ -454,11 +471,9 @@ const (
 	DICD_INHERIT_CLASSDRVS DICD = 0x00000002
 )
 
-//
 // SPDIT flags to distinguish between class drivers and
 // device drivers.
 // (Passed in 'DriverType' parameter of driver information list APIs)
-//
 type SPDIT uint32
 
 const (
@@ -487,7 +502,6 @@ const (
 	DIREG_BOTH DIREG = 0x00000004 // Delete both driver and Device key
 )
 
-//
 // SPDRP specifies device registry property codes
 // (Codes marked as read-only (R) may only be used for
 // SetupDiGetDeviceRegistryProperty)
@@ -496,7 +510,6 @@ const (
 // as defined by the CM_DRP codes in cfgmgr32.h.
 //
 // Note that SPDRP codes are zero based while CM_DRP codes are one based!
-//
 type SPDRP uint32
 
 const (
