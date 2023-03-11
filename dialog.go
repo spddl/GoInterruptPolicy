@@ -2,11 +2,14 @@ package main
 
 import (
 	"log"
+	"os"
 	"os/exec"
 	"sort"
 	"strings"
 
 	"github.com/lxn/walk"
+	"golang.org/x/sys/windows/registry"
+
 	//lint:ignore ST1001 standard behavior lxn/walk
 	. "github.com/lxn/walk/declarative"
 )
@@ -116,6 +119,7 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 									if device.MsiSupported == 0 {
 										device.MsiSupported = 1
 										deviceMessageNumberLimitNE.SetEnabled(true)
+										device.MessageNumberLimit = uint32(deviceMessageNumberLimitNE.Value())
 									} else {
 										device.MsiSupported = 0
 										deviceMessageNumberLimitNE.SetEnabled(false)
@@ -220,6 +224,58 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 								Layout:    Grid{Columns: 2},
 								Children:  CheckBoxList(CPUArray, &device.AssignmentSetOverride),
 							},
+						},
+					},
+
+					GroupBox{
+						Title:  "Registry",
+						Layout: HBox{},
+						Children: []Widget{
+							PushButton{
+								Text: "Open Device",
+								OnClicked: func() {
+									regPath, err := GetRegistryLocation(uintptr(device.reg))
+									if err != nil {
+										walk.MsgBox(dlg, "NtQueryKey Error", err.Error(), walk.MsgBoxOK)
+									}
+
+									k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Applets\Regedit`, registry.SET_VALUE)
+									if err != nil {
+										log.Fatal(err)
+									}
+									defer k.Close()
+
+									if err := k.SetStringValue("LastKey", regPath); err == nil {
+										exec.Command("regedit", "-m").Start()
+									}
+								},
+							},
+							PushButton{
+								Text: "Export current settings",
+								OnClicked: func() {
+									regPath, err := GetRegistryLocation(uintptr(device.reg))
+									if err != nil {
+										walk.MsgBox(dlg, "NtQueryKey Error", err.Error(), walk.MsgBoxOK)
+									}
+
+									path, err := os.Getwd()
+									if err != nil {
+										log.Println(err)
+									}
+
+									filePath, cancel, err := saveFileExplorer(dlg, path, strings.ReplaceAll(device.DeviceDesc, " ", "_")+".reg", "Save current settings", "Registry File (*.reg)|*.reg")
+									if !cancel || err != nil {
+										file, err := os.Create(filePath)
+										if err != nil {
+											return
+										}
+										defer file.Close()
+
+										file.WriteString(createRegFile(regPath, device))
+									}
+								},
+							},
+							HSpacer{},
 						},
 					},
 				},
