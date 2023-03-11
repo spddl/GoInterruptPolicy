@@ -17,7 +17,6 @@ type Device struct {
 	DevObjName          string
 	Driver              string
 	LocationInformation string
-	Regpath             string
 	FriendlyName        string
 	LastChange          time.Time
 
