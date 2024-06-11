@@ -7,7 +7,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/lxn/walk"
+	"github.com/tailscale/walk"
 )
 
 func createRegFile(regpath string, item *Device) string {

@@ -10,10 +10,10 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/lxn/walk"
+	"github.com/tailscale/walk"
 
-	//lint:ignore ST1001 standard behavior lxn/walk
-	. "github.com/lxn/walk/declarative"
+	//lint:ignore ST1001 standard behavior tailscale/walk
+	. "github.com/tailscale/walk/declarative"
 )
 
 func main() {

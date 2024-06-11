@@ -7,11 +7,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/lxn/walk"
+	"github.com/tailscale/walk"
 	"golang.org/x/sys/windows/registry"
 
-	//lint:ignore ST1001 standard behavior lxn/walk
-	. "github.com/lxn/walk/declarative"
+	//lint:ignore ST1001 standard behavior tailscale/walk
+	. "github.com/tailscale/walk/declarative"
 )
 
 type IrqPolicys struct {
