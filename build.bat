@@ -3,12 +3,10 @@
 SET GOOS=windows
 SET GOARCH=amd64
 SET filename=GoInterruptPolicy
-@REM for %%I in (.) do set "filename=%%~nxI"
 
 :loop
 CLS
 
-@REM gocritic check -enable="#performance" ./...
 gocritic check -enableAll -disable="#experimental,#opinionated,#commentedOutCode" ./...
 
 IF exist %filename%.exe (
@@ -18,7 +16,7 @@ IF exist %filename%.exe (
 )
 
 : Build https://golang.org/cmd/go/
-:: go build -v -ldflags="-w -s" -o %filename%.exe
+go build -tags debug -buildvcs=false -o %filename%_debug.exe
 go build -ldflags="-w -s -H windowsgui" -o %filename%.exe
 
 FOR /F "usebackq" %%A IN ('%filename%.exe') DO SET /A size=%%~zA
@@ -35,8 +33,7 @@ IF %diffSize% EQU 0 (
 )
 
 : Run
-@REM IF %ERRORLEVEL% EQU 0 start /B /wait build/%filename%.exe
-IF %ERRORLEVEL% EQU 0 %filename%.exe
+@REM IF %ERRORLEVEL% EQU 0 %filename%.exe
 
 PAUSE
 GOTO loop

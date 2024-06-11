@@ -16,7 +16,11 @@ import (
 	. "github.com/tailscale/walk/declarative"
 )
 
+var cs CpuSets
+
 func main() {
+	cs.Init()
+
 	var devices []Device
 	devices, handle = FindAllDevices()
 
@@ -144,10 +148,12 @@ func main() {
 		Children: []Widget{
 
 			TableView{
-				OnItemActivated:  mw.lb_ItemActivated,
-				Name:             "tableView", // Name is needed for settings persistence
-				AlternatingRowBG: true,
-				ColumnsOrderable: true,
+				OnItemActivated:     mw.lb_ItemActivated,
+				Name:                "tableView", // Name is needed for settings persistence
+				AlternatingRowBG:    true,
+				ColumnsOrderable:    true,
+				ColumnsSizable:      true,
+				LastColumnStretched: true,
 				Columns: []TableViewColumn{
 					{
 						Name:  "DeviceDesc",
@@ -166,7 +172,7 @@ func main() {
 					{
 						Name:      "MsiSupported",
 						Title:     "MSI Mode",
-						Width:     50,
+						Width:     60,
 						Alignment: AlignCenter,
 						FormatFunc: func(value interface{}) string {
 							if value.(uint32) == 0 {
@@ -214,7 +220,11 @@ func main() {
 									result = append(result, cpu)
 								}
 							}
-							sort.Strings(result)
+
+							result, err := sortNumbers(result)
+							if err != nil {
+								log.Println(err)
+							}
 							return strings.Join(result, ",")
 						},
 						LessFunc: func(i, j int) bool {
@@ -433,4 +443,22 @@ type Model struct {
 
 func (m *Model) Items() interface{} {
 	return m.items
+}
+
+func sortNumbers(data []string) ([]string, error) {
+	var lastErr error
+	sort.Slice(data, func(i, j int) bool {
+		a, err := strconv.ParseInt(data[i], 10, 64)
+		if err != nil {
+			lastErr = err
+			return false
+		}
+		b, err := strconv.ParseInt(data[j], 10, 64)
+		if err != nil {
+			lastErr = err
+			return false
+		}
+		return a < b
+	})
+	return data, lastErr
 }

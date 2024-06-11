@@ -45,7 +45,7 @@ const (
 type Bits uint64
 
 var CPUMap map[Bits]string
-var CPUArray []string
+
 var CPUBits []Bits
 var InterruptTypeMap = map[Bits]string{
 	0: "unknown",
@@ -59,6 +59,20 @@ var sysInfo SystemInfo
 var handle DevInfo
 
 const ZeroBit = Bits(0)
+
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	sysInfo = GetSystemInfo()
+	CPUMap = make(map[Bits]string, sysInfo.NumberOfProcessors)
+	var index Bits = 1
+	for i := 0; i < int(sysInfo.NumberOfProcessors); i++ {
+		indexString := strconv.Itoa(i)
+		CPUMap[index] = indexString
+		CPUBits = append(CPUBits, index)
+		index *= 2
+	}
+}
 
 func Set(b, flag Bits) Bits    { return b | flag }
 func Clear(b, flag Bits) Bits  { return b &^ flag }
@@ -96,19 +110,4 @@ func btoi16(val []byte) uint16 {
 		r |= uint16(val[i]) << (8 * i)
 	}
 	return r
-}
-
-func init() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
-	sysInfo = GetSystemInfo()
-	CPUMap = make(map[Bits]string, sysInfo.NumberOfProcessors)
-	var index Bits = 1
-	for i := 0; i < int(sysInfo.NumberOfProcessors); i++ {
-		indexString := strconv.Itoa(i)
-		CPUMap[index] = indexString
-		CPUArray = append(CPUArray, indexString)
-		CPUBits = append(CPUBits, index)
-		index *= 2
-	}
 }

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"math"
 	"os"
 	"os/exec"
 	"sort"
@@ -22,6 +24,11 @@ type IrqPolicys struct {
 type IrqPrioritys struct {
 	Enums float64
 	Name  string
+}
+
+type CheckBoxList struct {
+	Widget []Widget
+	List   []*walk.CheckBox
 }
 
 func IrqPolicy() []*IrqPolicys {
@@ -49,8 +56,11 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 	var db *walk.DataBinder
 	var acceptPB, cancelPB *walk.PushButton
 	var cpuArrayCom *walk.Composite
+	var cpuArrayComScrollView *walk.ScrollView
+	var presetsGrpBox *walk.GroupBox
 	var devicePolicyCB, devicePriorityCB *walk.ComboBox
 	var deviceMessageNumberLimitNE *walk.NumberEdit
+	var checkBoxList = new(CheckBoxList)
 
 	return Dialog{
 		AssignTo:      &dlg,
@@ -63,16 +73,12 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 			DataSource:     device,
 			ErrorPresenter: ToolTipErrorPresenter{},
 		},
-		MinSize: Size{
-			Width:  300,
-			Height: 300,
-		},
 		Layout: VBox{
 			MarginsZero: true,
 		},
 		Children: []Widget{
 			Composite{
-				Layout: Grid{Columns: 2},
+				Layout: VBox{},
 				Children: []Widget{
 					Composite{
 						Layout: Grid{
@@ -166,7 +172,7 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 
 					GroupBox{
 						Title:  "Advanced Policies",
-						Layout: Grid{Columns: 2},
+						Layout: VBox{},
 						Children: []Widget{
 							Composite{
 								Layout: Grid{
@@ -208,21 +214,83 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 										OnCurrentIndexChanged: func() {
 											device.DevicePolicy = uint32(devicePolicyCB.CurrentIndex())
 											if device.DevicePolicy == 4 {
-												cpuArrayCom.SetVisible(true)
+												cpuArrayComScrollView.SetVisible(true)
+												presetsGrpBox.SetVisible(true)
 											} else {
-												cpuArrayCom.SetVisible(false)
+												cpuArrayComScrollView.SetVisible(false)
+												presetsGrpBox.SetVisible(false)
 											}
+											dlg.SetSize(walk.Size{Width: 0, Height: 0})
 										},
 									},
 								},
 							},
 
-							Composite{
-								Alignment: AlignHCenterVCenter,
-								AssignTo:  &cpuArrayCom,
-								Visible:   Bind("device.DevicePolicy == 4"),
-								Layout:    Grid{Columns: 2},
-								Children:  CheckBoxList(CPUArray, &device.AssignmentSetOverride),
+							ScrollView{
+								AssignTo:        &cpuArrayComScrollView,
+								Layout:          HBox{MarginsZero: true},
+								DoubleBuffering: true,
+								MaxSize:         Size{Width: 65535, Height: 65535},
+								MinSize:         Size{Width: 150, Height: 150},
+								Visible:         Bind("device.DevicePolicy == 4"),
+								Children: []Widget{
+									Composite{
+										Alignment: AlignHCenterVCenter,
+										AssignTo:  &cpuArrayCom,
+										Layout: HBox{
+											Alignment:   Alignment2D(walk.AlignHNearVNear),
+											MarginsZero: true,
+										},
+										Children: checkBoxList.create(&device.AssignmentSetOverride),
+									},
+								},
+							},
+
+							GroupBox{
+								AssignTo: &presetsGrpBox,
+								Title:    "Presets for Specified Processors:",
+								Layout:   HBox{},
+								Children: []Widget{
+									PushButton{
+										Text: "All On",
+										OnClicked: func() {
+											checkBoxList.allOn(&device.AssignmentSetOverride)
+										},
+									},
+
+									PushButton{
+										Text: "All Off",
+										OnClicked: func() {
+											checkBoxList.allOff(&device.AssignmentSetOverride)
+										},
+									},
+
+									PushButton{
+										Text:    "HT Off",
+										Visible: cs.HyperThreading,
+										OnClicked: func() {
+											checkBoxList.htOff(&device.AssignmentSetOverride)
+										},
+									},
+
+									PushButton{
+										Text:    "P-Core Only",
+										Visible: cs.EfficiencyClass,
+										OnClicked: func() {
+											checkBoxList.pCoreOnly(&device.AssignmentSetOverride)
+										},
+									},
+
+									PushButton{
+										Text:    "E-Core Only",
+										Visible: cs.EfficiencyClass,
+										OnClicked: func() {
+											checkBoxList.eCoreOnly(&device.AssignmentSetOverride)
+										},
+									},
+
+									HSpacer{},
+								},
 							},
 						},
 					},
@@ -303,7 +371,6 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 					},
 					"eq": func(args ...interface{}) (interface{}, error) {
 						if len(args) != 2 {
-							log.Println("len(args) != 2")
 							return false, nil
 						}
 						switch v := args[0].(type) {
@@ -353,22 +420,246 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 	}.Run(owner)
 }
 
-func CheckBoxList(names []string, bits *Bits) []Widget {
-	bs := make([]*walk.CheckBox, len(names))
-	children := []Widget{}
-	for i, name := range names {
-		bs[i] = new(walk.CheckBox)
+func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
+	var children, partThread, partCore, partEfficiencyClass, partNUMA, partGroup, partCache []Widget
+	var lastEfficiencyClass, lastNumaNodeIndex, lastLastLevelCache byte
+	var (
+		cpuCount  = 0
+		numaCount = 0
+		llcCount  = 0
+	)
+
+	checkboxlist.List = make([]*walk.CheckBox, len(cs.CPU))
+
+	for i := 0; i < len(cs.CPU); i++ {
+		// fmt.Printf("\n\n%d - Core: %d, LogicalProc: %d, Effi: %d\n", i, cs.CPU[i].CoreIndex, cs.CPU[i].LogicalProcessorIndex, cs.CPU[i].EfficiencyClass)
+
+		var lastItem = i+1 == cs.CoreCount
+		if i == 0 { // The EfficiencyClass starts with 1 on the Intel Gen12+
+			lastEfficiencyClass = cs.CPU[i].EfficiencyClass
+		}
+
+		if len(partThread) != 0 && cs.CPU[i].CoreIndex == cs.CPU[i].LogicalProcessorIndex {
+			partCore = append(partCore, GroupBox{
+				Title:     fmt.Sprintf("Core %d", cpuCount),
+				Alignment: AlignHCenterVNear,
+				Layout: VBox{
+					Margins: CalculateMargins(len(partThread)),
+				},
+				Children: partThread,
+			})
+
+			cpuCount++
+			partThread = []Widget{}
+		}
+
 		local_CPUBits := CPUBits[i]
-		children = append(children, CheckBox{
-			AssignTo: &bs[i],
-			Text:     "CPU " + name,
-			Checked:  Has(*bits, local_CPUBits),
+		checkboxlist.List[i] = new(walk.CheckBox)
+		partThread = append(partThread, CheckBox{
+			ColumnSpan:         3,
+			RowSpan:            3,
+			AlwaysConsumeSpace: true,
+			StretchFactor:      2,
+			Text:               fmt.Sprintf("Thread %d", cs.CPU[i].LogicalProcessorIndex),
+			Name:               fmt.Sprintf("%d", cs.CPU[i].LogicalProcessorIndex),
+			AssignTo:           &checkboxlist.List[i],
+
+			Checked: Has(*bits, local_CPUBits),
 			OnClicked: func() {
 				*bits = Toggle(local_CPUBits, *bits)
 			},
 		})
+
+		if lastItem {
+			partCore = append(partCore, GroupBox{
+				Title:     fmt.Sprintf("Core %d", cpuCount),
+				Alignment: AlignHCenterVNear,
+				Layout: VBox{
+					Margins: CalculateMargins(len(partThread)),
+				},
+				Children: partThread,
+			})
+		}
+
+		if i == 0 {
+			continue
+		}
+
+		if cs.EfficiencyClass && (lastEfficiencyClass != cs.CPU[i].EfficiencyClass || lastItem) {
+			var title string
+			// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-system_cpu_set_information
+
+			if isIntel() && cs.EfficiencyClass {
+				if lastEfficiencyClass == 0 {
+					title = "E-Cores"
+				} else {
+					title = "P-Cores"
+				}
+			} else { // AMD
+				title = fmt.Sprintf("EfficiencyClass %d", lastEfficiencyClass)
+			}
+
+			if title == "" {
+				partNUMA = append(partNUMA, Composite{
+					Layout: Grid{
+						Columns: len(partCore) / 3,
+					},
+					Children: partCore,
+				})
+			} else {
+				partNUMA = append(partNUMA, GroupBox{
+					Title:       title,
+					ToolTipText: ToolTipTextEfficiencyClass,
+					Layout: Grid{
+						Columns: len(partCore) / 4,
+					},
+					Children: partCore,
+				})
+			}
+			partCore = []Widget{}
+			cpuCount = 0
+		}
+
+		if cs.LastLevelCache && (lastLastLevelCache != cs.CPU[i].LastLevelCacheIndex || lastItem) {
+			var title string
+			if isAMD() {
+				title = fmt.Sprintf("CCD %d", llcCount)
+			} else {
+				title = fmt.Sprintf("LLC %d", llcCount)
+			}
+
+			switch {
+			case len(partNUMA) != 0:
+				partGroup = append(partGroup, GroupBox{
+					Title:       title,
+					ToolTipText: ToolTipTextLastLevelCache,
+					Layout: Grid{
+						Columns: len(partNUMA) / 4,
+					},
+					Children: partNUMA,
+				})
+				partNUMA = []Widget{}
+			case len(partCore) != 0:
+				partGroup = append(partGroup, GroupBox{
+					Title:       title,
+					ToolTipText: ToolTipTextLastLevelCache,
+					Layout: Grid{
+						Columns: len(partCore) / 4,
+					},
+					Children: partCore,
+				})
+				llcCount++
+				partCore = []Widget{}
+			}
+		}
+
+		if cs.NumaNode && (lastNumaNodeIndex != cs.CPU[i].NumaNodeIndex || lastItem) {
+			switch {
+			case len(partGroup) != 0:
+				partCache = append(partCache, GroupBox{
+					Title:       fmt.Sprintf("NUMA %d", numaCount),
+					ToolTipText: ToolTipTextNumaNode,
+					Layout: Grid{
+						Columns: len(partGroup) / 4,
+					},
+					Children: partGroup,
+				})
+				partGroup = []Widget{}
+			case len(partNUMA) != 0:
+				partGroup = append(partGroup, GroupBox{
+					Title:       fmt.Sprintf("NUMA %d", numaCount),
+					ToolTipText: ToolTipTextNumaNode,
+					Layout: Grid{
+						Columns: len(partNUMA) / 4,
+					},
+					Children: partNUMA,
+				})
+				partNUMA = []Widget{}
+			case len(partCore) != 0:
+				partGroup = append(partGroup, GroupBox{
+					Title: fmt.Sprintf("NUMA %d", numaCount),
+					Layout: Grid{
+						Columns: len(partCore) / 4,
+					},
+					Children: partCore,
+				})
+				partCore = []Widget{}
+			}
+			numaCount++
+		}
+
+		lastEfficiencyClass = cs.CPU[i].EfficiencyClass
+		lastNumaNodeIndex = cs.CPU[i].NumaNodeIndex
+		lastLastLevelCache = cs.CPU[i].LastLevelCacheIndex
+	}
+
+	if len(partCache) != 0 {
+		return partCache
+	}
+	if len(partGroup) != 0 {
+		return partGroup
+	}
+	if len(partNUMA) != 0 {
+		return partNUMA
+	}
+	if len(partEfficiencyClass) != 0 {
+		return partEfficiencyClass
+	}
+	if len(partCore) != 0 {
+		return partCore
 	}
 	return children
+}
+
+func (checkboxlist *CheckBoxList) allOn(bits *Bits) {
+	for i := 0; i < len(checkboxlist.List); i++ {
+		*bits = Set(CPUBits[i], *bits)
+		checkboxlist.List[i].SetChecked(true)
+	}
+}
+func (checkboxlist *CheckBoxList) allOff(bits *Bits) {
+	for i := 0; i < len(checkboxlist.List); i++ {
+		checkboxlist.List[i].SetChecked(false)
+	}
+	*bits = Bits(0)
+}
+
+func (checkboxlist *CheckBoxList) htOff(bits *Bits) {
+	for i := 0; i < len(cs.CPU); i++ {
+		if cs.CPU[i].CoreIndex != cs.CPU[i].LogicalProcessorIndex {
+			checkboxlist.List[i].SetChecked(false)
+			if Has(CPUBits[i], *bits) {
+				*bits = Toggle(CPUBits[i], *bits)
+			}
+		}
+	}
+}
+
+func (checkboxlist *CheckBoxList) pCoreOnly(bits *Bits) {
+	for i := 0; i < len(cs.CPU); i++ {
+		if cs.CPU[i].EfficiencyClass == 1 {
+			checkboxlist.List[i].SetChecked(true)
+			*bits = Set(CPUBits[i], *bits)
+		} else {
+			checkboxlist.List[i].SetChecked(false)
+			if Has(CPUBits[i], *bits) {
+				*bits = Toggle(CPUBits[i], *bits)
+			}
+		}
+	}
+}
+func (checkboxlist *CheckBoxList) eCoreOnly(bits *Bits) {
+	for i := 0; i < len(cs.CPU); i++ {
+		if cs.CPU[i].EfficiencyClass == 0 {
+			checkboxlist.List[i].SetChecked(true)
+			*bits = Set(CPUBits[i], *bits)
+		} else {
+			checkboxlist.List[i].SetChecked(false)
+			if Has(CPUBits[i], *bits) {
+				*bits = Toggle(CPUBits[i], *bits)
+			}
+		}
+	}
 }
 
 // https://docs.microsoft.com/de-de/windows-hardware/drivers/kernel/enabling-message-signaled-interrupts-in-the-registry
@@ -392,4 +683,23 @@ func interruptType(b Bits) string {
 	}
 	sort.Strings(types)
 	return strings.Join(types, ", ")
+}
+
+func CalculateMargins(value int) Margins {
+	if cs.MaxThreadsPerCore+1 == value {
+		return Margins{
+			Left:   9,
+			Top:    9,
+			Right:  9,
+			Bottom: 9,
+		}
+	} else {
+		part := (11.75 * float64(cs.MaxThreadsPerCore+1) / float64(value))
+		return Margins{
+			Left:   9,
+			Top:    int(math.Floor(part)),
+			Right:  9,
+			Bottom: int(math.Ceil(part)),
+		}
+	}
 }
