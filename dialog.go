@@ -150,7 +150,7 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 										SpinButtonsVisible: true,
 										AssignTo:           &deviceMessageNumberLimitNE,
 										Enabled:            device.MsiSupported == 1,
-										MinValue:           1,
+										MinValue:           0,
 										MaxValue:           hasMsiX(device.InterruptTypeMap),
 										Value:              Bind("device.MessageNumberLimit < 1.0 ? 1.0 : device.MessageNumberLimit"),
 										OnValueChanged: func() {
