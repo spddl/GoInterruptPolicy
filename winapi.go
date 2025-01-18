@@ -14,9 +14,11 @@ var (
 	procSetupDiGetClassDevsW = modSetupapi.NewProc("SetupDiGetClassDevsW")
 )
 
+const CONFIG_FLAG_DISABLED uint32 = 1
+
 func FindAllDevices() ([]Device, DevInfo) {
 	var allDevices []Device
-	handle, err := SetupDiGetClassDevs(nil, nil, 0, uint32(DIGCF_ALLCLASSES|DIGCF_PRESENT|DIGCF_PROFILE))
+	handle, err := SetupDiGetClassDevs(nil, nil, 0, uint32(DIGCF_ALLCLASSES|DIGCF_PRESENT))
 	if err != nil {
 		panic(err)
 	}
@@ -32,7 +34,16 @@ func FindAllDevices() ([]Device, DevInfo) {
 		dev := Device{
 			Idata: *idata,
 		}
-		val, err := SetupDiGetDeviceRegistryProperty(handle, idata, SPDRP_DEVICEDESC)
+
+		val, err := SetupDiGetDeviceRegistryProperty(handle, idata, SPDRP_CONFIGFLAGS)
+		if err == nil {
+			if val.(uint32)&CONFIG_FLAG_DISABLED != 0 {
+				// Sorts out deactivated devices
+				continue
+			}
+		}
+
+		val, err = SetupDiGetDeviceRegistryProperty(handle, idata, SPDRP_DEVICEDESC)
 		if err == nil {
 			if val.(string) == "" {
 				continue
