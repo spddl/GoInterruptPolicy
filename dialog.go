@@ -55,9 +55,10 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 	var dlg *walk.Dialog
 	var db *walk.DataBinder
 	var acceptPB, cancelPB *walk.PushButton
-	var cpuArrayCom *walk.Composite
-	var cpuArrayComScrollView *walk.ScrollView
-	var presetsGrpBox *walk.GroupBox
+
+	var cpuArrayComView *walk.Composite
+
+	// var presetsGrpBox *walk.GroupBox
 	var devicePolicyCB, devicePriorityCB *walk.ComboBox
 	var deviceMessageNumberLimitNE *walk.NumberEdit
 	var checkBoxList = new(CheckBoxList)
@@ -67,6 +68,7 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 		Title:         Bind("'Device Policy' + (device.DeviceDesc == '' ? '' : ' - ' + device.DeviceDesc)"),
 		DefaultButton: &acceptPB,
 		CancelButton:  &cancelPB,
+		FixedSize:     true,
 		DataBinder: DataBinder{
 			AssignTo:       &db,
 			Name:           "device",
@@ -212,84 +214,86 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 										DisplayMember: "Name",
 										Model:         IrqPolicy(),
 										OnCurrentIndexChanged: func() {
-											device.DevicePolicy = uint32(devicePolicyCB.CurrentIndex())
-											if device.DevicePolicy == 4 {
-												cpuArrayComScrollView.SetVisible(true)
-												presetsGrpBox.SetVisible(true)
-											} else {
-												cpuArrayComScrollView.SetVisible(false)
-												presetsGrpBox.SetVisible(false)
+											currentIndex := uint32(devicePolicyCB.CurrentIndex())
+											if device.DevicePolicy == currentIndex {
+												return
 											}
-											dlg.SetSize(walk.Size{Width: 0, Height: 0})
+
+											device.DevicePolicy = currentIndex
+											if device.DevicePolicy == 4 {
+												cpuArrayComView.SetVisible(true)
+												return
+											}
+
+											cpuArrayComView.SetVisible(false)
+
+											if err := dlg.SetSize(walk.Size{Width: 0, Height: 0}); err != nil {
+												panic(err)
+											}
+
 										},
 									},
 								},
 							},
 
-							ScrollView{
-								AssignTo:        &cpuArrayComScrollView,
-								Layout:          HBox{MarginsZero: true},
-								DoubleBuffering: true,
-								MaxSize:         Size{Width: 65535, Height: 65535},
-								MinSize:         Size{Width: 150, Height: 150},
-								Visible:         Bind("device.DevicePolicy == 4"),
+							Composite{
+								AssignTo: &cpuArrayComView,
+								Layout:   VBox{MarginsZero: true},
+								Visible:  Bind("device.DevicePolicy == 4"),
 								Children: []Widget{
 									Composite{
-										Alignment: AlignHCenterVCenter,
-										AssignTo:  &cpuArrayCom,
+										Alignment: AlignHNearVNear,
 										Layout: HBox{
 											Alignment:   Alignment2D(walk.AlignHNearVNear),
 											MarginsZero: true,
 										},
 										Children: checkBoxList.create(&device.AssignmentSetOverride),
 									},
-								},
-							},
+									GroupBox{
+										Title:  "Presets for Specified Processors:",
+										Layout: HBox{},
+										Children: []Widget{
+											PushButton{
+												Text: "All On",
+												OnClicked: func() {
+													checkBoxList.allOn(&device.AssignmentSetOverride)
+												},
+											},
 
-							GroupBox{
-								AssignTo: &presetsGrpBox,
-								Title:    "Presets for Specified Processors:",
-								Layout:   HBox{},
-								Children: []Widget{
-									PushButton{
-										Text: "All On",
-										OnClicked: func() {
-											checkBoxList.allOn(&device.AssignmentSetOverride)
+											PushButton{
+												Text: "All Off",
+												OnClicked: func() {
+													checkBoxList.allOff(&device.AssignmentSetOverride)
+												},
+											},
+
+											PushButton{
+												Text:    "HT Off",
+												Visible: cs.HyperThreading,
+												OnClicked: func() {
+													checkBoxList.htOff(&device.AssignmentSetOverride)
+												},
+											},
+
+											PushButton{
+												Text:    "P-Core Only",
+												Visible: cs.EfficiencyClass,
+												OnClicked: func() {
+													checkBoxList.pCoreOnly(&device.AssignmentSetOverride)
+												},
+											},
+
+											PushButton{
+												Text:    "E-Core Only",
+												Visible: cs.EfficiencyClass,
+												OnClicked: func() {
+													checkBoxList.eCoreOnly(&device.AssignmentSetOverride)
+												},
+											},
+
+											HSpacer{},
 										},
 									},
-
-									PushButton{
-										Text: "All Off",
-										OnClicked: func() {
-											checkBoxList.allOff(&device.AssignmentSetOverride)
-										},
-									},
-
-									PushButton{
-										Text:    "HT Off",
-										Visible: cs.HyperThreading,
-										OnClicked: func() {
-											checkBoxList.htOff(&device.AssignmentSetOverride)
-										},
-									},
-
-									PushButton{
-										Text:    "P-Core Only",
-										Visible: cs.EfficiencyClass,
-										OnClicked: func() {
-											checkBoxList.pCoreOnly(&device.AssignmentSetOverride)
-										},
-									},
-
-									PushButton{
-										Text:    "E-Core Only",
-										Visible: cs.EfficiencyClass,
-										OnClicked: func() {
-											checkBoxList.eCoreOnly(&device.AssignmentSetOverride)
-										},
-									},
-
-									HSpacer{},
 								},
 							},
 						},

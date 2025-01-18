@@ -124,11 +124,13 @@ func main() {
 		return devices[i].DeviceDesc < devices[j].DeviceDesc
 	})
 
+	AllDevices := devices
+
+	var LineEditSearch *walk.LineEdit
 	mw := &MyMainWindow{
 		model: &Model{items: devices},
 		tv:    &walk.TableView{},
 	}
-
 	if err := (MainWindow{
 		AssignTo: &mw.MainWindow,
 		Title:    "GoInterruptPolicy",
@@ -140,13 +142,39 @@ func main() {
 			Width:  750,
 			Height: 600,
 		},
-		Background: SolidColorBrush{Color: walk.RGB(32, 32, 32)},
 		Layout: VBox{
 			MarginsZero: true,
 			SpacingZero: true,
 		},
 		Children: []Widget{
-
+			Composite{
+				Layout: VBox{},
+				Children: []Widget{
+					LineEdit{
+						AssignTo:  &LineEditSearch,
+						CueBanner: "Search",
+						OnTextChanged: func() {
+							text := strings.ToLower(LineEditSearch.Text())
+							if text == "" {
+								mw.tv.SetModel(&Model{items: AllDevices})
+								mw.sbi.SetText(fmt.Sprintf("%d Devices Found", len(devices)))
+							} else {
+								newDevices := []Device{}
+								for i := 0; i < len(AllDevices); i++ {
+									if strings.Contains(strings.ToLower(AllDevices[i].DeviceDesc), text) ||
+										strings.Contains(strings.ToLower(AllDevices[i].DevObjName), text) ||
+										strings.Contains(strings.ToLower(AllDevices[i].LocationInformation), text) ||
+										strings.Contains(strings.ToLower(AllDevices[i].FriendlyName), text) {
+										newDevices = append(newDevices, AllDevices[i])
+									}
+								}
+								mw.tv.SetModel(&Model{items: newDevices})
+								mw.sbi.SetText(fmt.Sprintf("%d Devices Found", len(newDevices)))
+							}
+						},
+					},
+				},
+			},
 			TableView{
 				OnItemActivated:     mw.lb_ItemActivated,
 				Name:                "tableView", // Name is needed for settings persistence
@@ -154,6 +182,25 @@ func main() {
 				ColumnsOrderable:    true,
 				ColumnsSizable:      true,
 				LastColumnStretched: true,
+
+				Model:    mw.model,
+				AssignTo: &mw.tv,
+				OnKeyUp: func(key walk.Key) {
+					i := mw.tv.CurrentIndex()
+					if i == -1 {
+						i = 0
+					}
+					for ; i < len(mw.model.items); i++ {
+						item := &mw.model.items[i]
+						if item.DeviceDesc != "" && key.String() == item.DeviceDesc[0:1] {
+							err := mw.tv.SetCurrentIndex(i)
+							if err != nil {
+								log.Println(err)
+							}
+							return
+						}
+					}
+				},
 				Columns: []TableViewColumn{
 					{
 						Name:  "DeviceDesc",
@@ -301,29 +348,12 @@ func main() {
 						},
 					},
 				},
-				Model:    mw.model,
-				AssignTo: &mw.tv,
-				OnKeyUp: func(key walk.Key) {
-					i := mw.tv.CurrentIndex()
-					if i == -1 {
-						i = 0
-					}
-					for ; i < len(mw.model.items); i++ {
-						item := &mw.model.items[i]
-						if item.DeviceDesc != "" && key.String() == item.DeviceDesc[0:1] {
-							err := mw.tv.SetCurrentIndex(i)
-							if err != nil {
-								log.Println(err)
-							}
-							return
-						}
-					}
-				},
 			},
 		},
 		StatusBarItems: []StatusBarItem{
 			{
 				AssignTo: &mw.sbi,
+				Text:     fmt.Sprintf("%d Devices Found", len(devices)),
 			},
 		},
 	}).Create(); err != nil {
@@ -343,6 +373,7 @@ func main() {
 	}
 
 	mw.Show()
+	mw.tv.SetFocus()
 	mw.Run()
 }
 
@@ -354,14 +385,14 @@ type MyMainWindow struct {
 }
 
 func (mw *MyMainWindow) lb_ItemActivated() {
-	newItem := &mw.model.items[mw.tv.CurrentIndex()]
+	newItem := &mw.tv.Model().(*Model).items[mw.tv.CurrentIndex()]
 	orgItem := *newItem
 	result, err := RunDialog(mw, newItem)
 	if err != nil {
 		log.Print(err)
 	}
 	if result == 0 || result == 2 { // cancel
-		mw.model.items[mw.tv.CurrentIndex()] = orgItem
+		mw.tv.Model().(*Model).items[mw.tv.CurrentIndex()] = orgItem
 		return
 	}
 
@@ -437,7 +468,7 @@ func (mw *MyMainWindow) TextWidthSize(text string) int {
 }
 
 type Model struct {
-	walk.SortedReflectTableModelBase
+	// walk.SortedReflectTableModelBase
 	items []Device
 }
 
