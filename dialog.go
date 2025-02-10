@@ -58,7 +58,6 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 
 	var cpuArrayComView *walk.Composite
 
-	// var presetsGrpBox *walk.GroupBox
 	var devicePolicyCB, devicePriorityCB *walk.ComboBox
 	var deviceMessageNumberLimitNE *walk.NumberEdit
 	var checkBoxList = new(CheckBoxList)
@@ -425,25 +424,20 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 }
 
 func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
-	var children, partThread, partCore, partEfficiencyClass, partNUMA, partGroup, partCache []Widget
+	var children, partThread, partCore, partNUMA, partGroup, partCache []Widget
 	var lastEfficiencyClass, lastNumaNodeIndex, lastLastLevelCache byte
-	var (
-		cpuCount  = 0
-		numaCount = 0
-		llcCount  = 0
-	)
+	var cpuCount, numaCount, llcCount int
 
 	checkboxlist.List = make([]*walk.CheckBox, len(cs.CPU))
+	for i, cpuThread := range cs.CPU {
+		// fmt.Printf("\n\n%d - Core: %d, LogicalProc: %d, Effi: %d\n", i,cpu.CoreIndex, cs.CPU[i].LogicalProcessorIndex, cs.CPU[i].EfficiencyClass)
 
-	for i := 0; i < len(cs.CPU); i++ {
-		// fmt.Printf("\n\n%d - Core: %d, LogicalProc: %d, Effi: %d\n", i, cs.CPU[i].CoreIndex, cs.CPU[i].LogicalProcessorIndex, cs.CPU[i].EfficiencyClass)
-
-		var lastItem = i+1 == cs.CoreCount
+		var isLastItem = i+1 == cs.CoreCount
 		if i == 0 { // The EfficiencyClass starts with 1 on the Intel Gen12+
-			lastEfficiencyClass = cs.CPU[i].EfficiencyClass
+			lastEfficiencyClass = cpuThread.EfficiencyClass
 		}
 
-		if len(partThread) != 0 && cs.CPU[i].CoreIndex == cs.CPU[i].LogicalProcessorIndex {
+		if len(partThread) != 0 && cpuThread.CoreIndex == cpuThread.LogicalProcessorIndex {
 			partCore = append(partCore, GroupBox{
 				Title:     fmt.Sprintf("Core %d", cpuCount),
 				Alignment: AlignHCenterVNear,
@@ -452,29 +446,27 @@ func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 				},
 				Children: partThread,
 			})
-
 			cpuCount++
-			partThread = []Widget{}
+			partThread = nil
 		}
 
 		local_CPUBits := CPUBits[i]
 		checkboxlist.List[i] = new(walk.CheckBox)
+
 		partThread = append(partThread, CheckBox{
 			ColumnSpan:         3,
 			RowSpan:            3,
 			AlwaysConsumeSpace: true,
 			StretchFactor:      2,
-			Text:               fmt.Sprintf("Thread %d", cs.CPU[i].LogicalProcessorIndex),
-			Name:               fmt.Sprintf("%d", cs.CPU[i].LogicalProcessorIndex),
+			Text:               fmt.Sprintf("Thread %d", cpuThread.LogicalProcessorIndex),
 			AssignTo:           &checkboxlist.List[i],
-
-			Checked: Has(*bits, local_CPUBits),
+			Checked:            Has(*bits, local_CPUBits),
 			OnClicked: func() {
 				*bits = Toggle(local_CPUBits, *bits)
 			},
 		})
 
-		if lastItem {
+		if isLastItem {
 			partCore = append(partCore, GroupBox{
 				Title:     fmt.Sprintf("Core %d", cpuCount),
 				Alignment: AlignHCenterVNear,
@@ -489,7 +481,7 @@ func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 			continue
 		}
 
-		if cs.EfficiencyClass && (lastEfficiencyClass != cs.CPU[i].EfficiencyClass || lastItem) {
+		if cs.EfficiencyClass && (lastEfficiencyClass != cpuThread.EfficiencyClass || isLastItem) {
 			var title string
 			// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-system_cpu_set_information
 
@@ -503,28 +495,20 @@ func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 				title = fmt.Sprintf("EfficiencyClass %d", lastEfficiencyClass)
 			}
 
-			if title == "" {
-				partNUMA = append(partNUMA, Composite{
-					Layout: Grid{
-						Columns: len(partCore) / 3,
-					},
-					Children: partCore,
-				})
-			} else {
-				partNUMA = append(partNUMA, GroupBox{
-					Title:       title,
-					ToolTipText: ToolTipTextEfficiencyClass,
-					Layout: Grid{
-						Columns: len(partCore) / 4,
-					},
-					Children: partCore,
-				})
-			}
-			partCore = []Widget{}
+			partNUMA = append(partNUMA, GroupBox{
+				Title:       title,
+				ToolTipText: ToolTipTextEfficiencyClass,
+				Layout: Grid{
+					Columns: len(partCore) / cs.Layout.Rows,
+				},
+				Children: partCore,
+			})
+
+			partCore = nil
 			cpuCount = 0
 		}
 
-		if cs.LastLevelCache && (lastLastLevelCache != cs.CPU[i].LastLevelCacheIndex || lastItem) {
+		if cs.LastLevelCache && (lastLastLevelCache != cpuThread.LastLevelCacheIndex || isLastItem) {
 			var title string
 			if isAMD() {
 				title = fmt.Sprintf("CCD %d", llcCount)
@@ -538,81 +522,85 @@ func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 					Title:       title,
 					ToolTipText: ToolTipTextLastLevelCache,
 					Layout: Grid{
-						Columns: len(partNUMA) / 4,
+						Columns: len(partNUMA) / cs.Layout.Rows,
 					},
 					Children: partNUMA,
 				})
-				partNUMA = []Widget{}
+				partNUMA = nil
 			case len(partCore) != 0:
 				partGroup = append(partGroup, GroupBox{
 					Title:       title,
 					ToolTipText: ToolTipTextLastLevelCache,
 					Layout: Grid{
-						Columns: len(partCore) / 4,
+						Columns: len(partCore) / cs.Layout.Rows,
 					},
 					Children: partCore,
 				})
 				llcCount++
-				partCore = []Widget{}
+				partCore = nil
 			}
 		}
 
-		if cs.NumaNode && (lastNumaNodeIndex != cs.CPU[i].NumaNodeIndex || lastItem) {
+		if cs.NumaNode && (lastNumaNodeIndex != cpuThread.NumaNodeIndex || isLastItem) {
 			switch {
 			case len(partGroup) != 0:
 				partCache = append(partCache, GroupBox{
 					Title:       fmt.Sprintf("NUMA %d", numaCount),
 					ToolTipText: ToolTipTextNumaNode,
 					Layout: Grid{
-						Columns: len(partGroup) / 4,
+						Columns: len(partGroup) / cs.Layout.Rows,
 					},
 					Children: partGroup,
 				})
-				partGroup = []Widget{}
+				partGroup = nil
 			case len(partNUMA) != 0:
 				partGroup = append(partGroup, GroupBox{
 					Title:       fmt.Sprintf("NUMA %d", numaCount),
 					ToolTipText: ToolTipTextNumaNode,
 					Layout: Grid{
-						Columns: len(partNUMA) / 4,
+						Columns: len(partNUMA) / cs.Layout.Rows,
 					},
 					Children: partNUMA,
 				})
-				partNUMA = []Widget{}
+				partNUMA = nil
 			case len(partCore) != 0:
 				partGroup = append(partGroup, GroupBox{
-					Title: fmt.Sprintf("NUMA %d", numaCount),
+					Title:       fmt.Sprintf("NUMA %d", numaCount),
+					ToolTipText: ToolTipTextNumaNode,
 					Layout: Grid{
-						Columns: len(partCore) / 4,
+						Columns: len(partCore) / cs.Layout.Rows,
 					},
 					Children: partCore,
 				})
-				partCore = []Widget{}
+				partCore = nil
 			}
 			numaCount++
 		}
 
-		lastEfficiencyClass = cs.CPU[i].EfficiencyClass
-		lastNumaNodeIndex = cs.CPU[i].NumaNodeIndex
-		lastLastLevelCache = cs.CPU[i].LastLevelCacheIndex
+		lastEfficiencyClass = cpuThread.EfficiencyClass
+		lastNumaNodeIndex = cpuThread.NumaNodeIndex
+		lastLastLevelCache = cpuThread.LastLevelCacheIndex
 	}
 
-	if len(partCache) != 0 {
+	switch {
+	case len(partCache) > 0:
 		return partCache
-	}
-	if len(partGroup) != 0 {
+	case len(partGroup) > 0:
 		return partGroup
-	}
-	if len(partNUMA) != 0 {
+	case len(partNUMA) > 0:
 		return partNUMA
+	case len(partCore) > 0:
+		return []Widget{
+			Composite{
+				Layout: Grid{
+					Columns: len(partCore) / cs.Layout.Rows,
+				},
+				Children: partCore,
+			},
+		}
+	default:
+		return children
 	}
-	if len(partEfficiencyClass) != 0 {
-		return partEfficiencyClass
-	}
-	if len(partCore) != 0 {
-		return partCore
-	}
-	return children
 }
 
 func (checkboxlist *CheckBoxList) allOn(bits *Bits) {

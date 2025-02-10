@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"math"
 
 	"golang.org/x/sys/windows"
 )
@@ -22,6 +23,10 @@ type CpuSets struct {
 	LastLevelCache    bool // A group-relative value indicating which CPU Sets share at least one level of cache with each other. This value is the same for all CPU Sets in a group that are on processors that share cache with each other.
 	EfficiencyClass   bool // A value indicating the intrinsic energy efficiency of a processor for systems that support heterogeneous processors (such as ARM big.LITTLE systems). CPU Sets with higher numerical values of this field have home processors that are faster but less power-efficient than ones with lower values.
 	CPU               []CpuSet
+	Layout            struct {
+		Rows int
+		Cols int
+	}
 }
 
 type CpuSet struct {
@@ -31,6 +36,28 @@ type CpuSet struct {
 	LastLevelCacheIndex   byte // A group-relative value indicating which CPU Sets share at least one level of cache with each other. This value is the same for all CPU Sets in a group that are on processors that share cache with each other.
 	EfficiencyClass       byte // A value indicating the intrinsic energy efficiency of a processor for systems that support heterogeneous processors (such as ARM big.LITTLE systems). CPU Sets with higher numerical values of this field have home processors that are faster but less power-efficient than ones with lower values.
 	NumaNodeIndex         byte // A group-relative value indicating which NUMA node a CPU Set is on. All CPU Sets in a given group that are on the same NUMA node will have the same value for this field.
+}
+
+func getLayout(total int) (bestCols, bestRows int) {
+	ratio := 16.0 / 9.0
+	bestCols, bestRows = 1, total
+	minDiff := math.MaxFloat64
+
+	for cols := 1; cols <= total; cols++ {
+		rows := total / cols
+		if cols*rows != total {
+			continue
+		}
+		currentRatio := float64(cols) / float64(rows)
+		diff := math.Abs(currentRatio - ratio)
+
+		if diff < minDiff {
+			bestCols, bestRows = cols, rows
+			minDiff = diff
+		}
+	}
+
+	return
 }
 
 func (cs *CpuSets) Init() {
@@ -81,6 +108,8 @@ func (cs *CpuSets) Init() {
 			if cs.MaxThreadsPerCore < int(cpu.LogicalProcessorIndex-cpu.CoreIndex) {
 				cs.MaxThreadsPerCore = int(cpu.LogicalProcessorIndex - cpu.CoreIndex)
 			}
+		} else {
+			LogicalCores++
 		}
 
 		if !cs.EfficiencyClass && lastEfficiencyClass != cpu.EfficiencyClass {
@@ -99,4 +128,6 @@ func (cs *CpuSets) Init() {
 		lastLevelCache = cpu.LastLevelCacheIndex
 		lastNumaNodeIndex = cpu.NumaNodeIndex
 	}
+
+	cs.Layout.Cols, cs.Layout.Rows = getLayout(LogicalCores)
 }
