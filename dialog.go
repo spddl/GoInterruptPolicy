@@ -538,6 +538,7 @@ func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 				})
 				llcCount++
 				partCore = nil
+				cpuCount = 0
 			}
 		}
 
@@ -573,6 +574,7 @@ func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 					Children: partCore,
 				})
 				partCore = nil
+				cpuCount = 0
 			}
 			numaCount++
 		}
