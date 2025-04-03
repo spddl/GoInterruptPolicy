@@ -142,3 +142,4 @@ func Fake2CCD12CoreHT() {
 	}
 	SystemCpuSets = cpuSet[:count]
 }
+// Intel Core i5-13600KF
