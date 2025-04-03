@@ -499,7 +499,7 @@ func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 				Title:       title,
 				ToolTipText: ToolTipTextEfficiencyClass,
 				Layout: Grid{
-					Columns: len(partCore) / cs.Layout.Rows,
+					Columns: mathCeilInInt(len(partCore), cs.Layout[lastEfficiencyClass].Rows),
 				},
 				Children: partCore,
 			})
@@ -522,7 +522,7 @@ func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 					Title:       title,
 					ToolTipText: ToolTipTextLastLevelCache,
 					Layout: Grid{
-						Columns: len(partNUMA) / cs.Layout.Rows,
+						Columns: len(partNUMA) / 2,
 					},
 					Children: partNUMA,
 				})
@@ -532,7 +532,7 @@ func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 					Title:       title,
 					ToolTipText: ToolTipTextLastLevelCache,
 					Layout: Grid{
-						Columns: len(partCore) / cs.Layout.Rows,
+						Columns: mathCeilInInt(len(partCore), cs.Layout[lastEfficiencyClass].Rows),
 					},
 					Children: partCore,
 				})
@@ -549,7 +549,7 @@ func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 					Title:       fmt.Sprintf("NUMA %d", numaCount),
 					ToolTipText: ToolTipTextNumaNode,
 					Layout: Grid{
-						Columns: len(partGroup) / cs.Layout.Rows,
+						Columns: len(partGroup) / 2,
 					},
 					Children: partGroup,
 				})
@@ -559,7 +559,7 @@ func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 					Title:       fmt.Sprintf("NUMA %d", numaCount),
 					ToolTipText: ToolTipTextNumaNode,
 					Layout: Grid{
-						Columns: len(partNUMA) / cs.Layout.Rows,
+						Columns: len(partNUMA) / 2,
 					},
 					Children: partNUMA,
 				})
@@ -569,7 +569,7 @@ func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 					Title:       fmt.Sprintf("NUMA %d", numaCount),
 					ToolTipText: ToolTipTextNumaNode,
 					Layout: Grid{
-						Columns: len(partCore) / cs.Layout.Rows,
+						Columns: cs.Layout[lastEfficiencyClass].Cols,
 					},
 					Children: partCore,
 				})
@@ -595,7 +595,7 @@ func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 		return []Widget{
 			Composite{
 				Layout: Grid{
-					Columns: len(partCore) / cs.Layout.Rows,
+					Columns: cs.Layout[lastEfficiencyClass].Cols,
 				},
 				Children: partCore,
 			},
