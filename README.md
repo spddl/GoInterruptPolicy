@@ -9,4 +9,4 @@
 
 I just tried to create a better version of the "Interrupt Affinity Policy" and "MSI Mode" Tool
 
-![screenshot](https://i.imgur.com/c4l8cQP.png)
+![screenshot](https://github.com/user-attachments/assets/61818056-4b6c-4ee7-84cb-4226f3660ca3)
