@@ -1,2 +1,3 @@
-GoInterruptPolicy.exe
-GoInterruptPolicy_debug.exe
+*.exe
+*.zip
+*.tmp
