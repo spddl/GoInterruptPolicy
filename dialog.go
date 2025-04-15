@@ -310,8 +310,9 @@ func RunDialog(owner walk.Form, device *Device) (int, error) {
 										walk.MsgBox(dlg, "NtQueryKey Error", err.Error(), walk.MsgBoxOK)
 									}
 
-									k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Applets\Regedit`, registry.SET_VALUE)
+									k, _, err := registry.CreateKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Applets\Regedit`, registry.SET_VALUE)
 									if err != nil {
+										walk.MsgBox(dlg, "Registry Error", err.Error(), walk.MsgBoxOK)
 										log.Fatal(err)
 									}
 									defer k.Close()
