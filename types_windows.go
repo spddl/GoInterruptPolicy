@@ -556,14 +556,27 @@ type DEVPROPKEY struct {
 	pid   uint32
 }
 
-var DEVPKEY_PciRootBus_PCIExpressNativePMEControl = DEVPROPKEY{
-	// windows.GUID{0x3ab22e31, 0x8264, 0x4b4e, [8]byte{0x9a, 0xf5, 0xa8, 0xd2, 0xd8, 0xe3, 0x3e, 0x62}},
+//
+// This property describes the hardware support for interrupts on the device.
+// It is a bitmask of supported interrupt types, with the following values:
+//
+
+// #define DevProp_PciDevice_InterruptType_LineBased       1
+// #define DevProp_PciDevice_InterruptType_Msi             2
+// #define DevProp_PciDevice_InterruptType_MsiX            4
+
+var DEVPKEY_PciDevice_InterruptSupport = DEVPROPKEY{
 	windows.GUID{Data1: 0x3ab22e31, Data2: 0x8264, Data3: 0x4b4e, Data4: [8]byte{0x9a, 0xf5, 0xa8, 0xd2, 0xd8, 0xe3, 0x3e, 0x62}},
 	14,
 }
 
-var DEVPKEY_PciRootBus_MaxMSILimit = DEVPROPKEY{
-	// windows.GUID{0x3ab22e31, 0x8264, 0x4b4e, [8]byte{0x9a, 0xf5, 0xa8, 0xd2, 0xd8, 0xe3, 0x3e, 0x62}},
+//
+// This property describes the number of message interrupts a device supports
+// in hardware.  This property is only valid if the device supports message
+// interrupts.
+//
+
+var DEVPKEY_PciDevice_InterruptMessageMaximum = DEVPROPKEY{
 	windows.GUID{Data1: 0x3ab22e31, Data2: 0x8264, Data3: 0x4b4e, Data4: [8]byte{0x9a, 0xf5, 0xa8, 0xd2, 0xd8, 0xe3, 0x3e, 0x62}},
 	15,
 }

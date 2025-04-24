@@ -53,12 +53,12 @@ func FindAllDevices() ([]Device, DevInfo) {
 			continue
 		}
 
-		valProp, err := GetDeviceProperty(handle, idata, DEVPKEY_PciRootBus_PCIExpressNativePMEControl)
+		valProp, err := GetDeviceProperty(handle, idata, DEVPKEY_PciDevice_InterruptSupport)
 		if err == nil {
 			dev.InterruptTypeMap = Bits(btoi16(valProp))
 		}
 
-		valProp, err = GetDeviceProperty(handle, idata, DEVPKEY_PciRootBus_MaxMSILimit)
+		valProp, err = GetDeviceProperty(handle, idata, DEVPKEY_PciDevice_InterruptMessageMaximum)
 		if err == nil {
 			dev.MaxMSILimit = btoi32(valProp)
 		}
